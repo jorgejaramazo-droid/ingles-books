@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Verb To Be - Game Boy Edition</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #111;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: system-ui, sans-serif;
+      color: #eee;
+    }
+
+    #gameboy-frame {
+      padding: 18px;
+      border-radius: 18px;
+      background: #222;
+      box-shadow: 0 0 25px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #title {
+      font-size: 18px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      border-radius: 6px;
+      border: 4px solid #555;
+      background: #99c98c; /* verde tipo Game Boy */
+    }
+
+    #controls {
+      font-size: 12px;
+      text-align: center;
+      color: #aaa;
+    }
+
+    @media (max-width: 480px) {
+      #gameboy-frame {
+        transform: scale(0.9);
+      }
+    }
+  </style>
+</head>
+<body>
+<div id="gameboy-frame">
+  <div id="title">Verb To Be · Game Boy</div>
+  <canvas id="game" width="320" height="240"></canvas>
+  <div id="controls">
+    ▲▼ para elegir · ENTER para aceptar · ESC para saltar explicación
+  </div>
+</div>
+
+<script>
+/* =====================================================
+   GAME BOY VERB TO BE — PARA HISPANOHABLANTES
+   Pantalla 320x240, estilo mini Game Boy
+   ===================================================== */
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+// Paleta verde tipo Game Boy
+const COLORS = {
+  bg: "#99c98c",
+  dark: "#436646",
+  darker: "#2b4530",
+  light: "#cfe9c0",
+  text: "#102010"
+};
+
+// Estados del juego
+const SCREENS = {
+  TITLE: "title",
+  STORY: "story",
+  EXPLAIN_AFFIRM: "explain_affirm",
+  EXPLAIN_NEG: "explain_neg",
+  EXPLAIN_INTER: "explain_inter",
+  QUIZ: "quiz",
+  SUMMARY: "summary"
+};
+
+let state = {
+  screen: SCREENS.TITLE,
+  selectionIndex: 0,
+  storyPage: 0,
+  explainPage: 0,
+  quizIndex: 0,
+  score: 0,
+  totalQuestions: 0,
+};
+
+// Historia corta (libro)
+const storyPages = [
+  [
+    "GRAMARION, REINO PIXELADO.",
+    "",
+    "Eres un estudiante hispano que",
+    "quiere dominar el VERB TO BE.",
+    "",
+    "El mago 'Wizard To-Be' dice que",
+    "sin este verbo no puedes viajar",
+    "a otros mundos del ingles.",
+    "",
+    "Primero leeras el libro magico,",
+    "luego lucharás contra los",
+    "enemigos: YOU IS, SHE ARE, etc.",
+    "",
+    "Presiona ENTER para continuar."
+  ],
+  [
+    "Wizard To-Be:",
+    "",
+    "\"El verbo TO BE significa",
+    "SER o ESTAR. Es el rey",
+    "de todos los verbos.\"",
+    "",
+    "\"Lo usaras para hablar de",
+    "identidad, emociones y",
+    "descripcion.\"",
+    "",
+    "Tu mision:",
+    "Aprender afirmativo, negativo",
+    "e interrogativo.",
+    "",
+    "ENTER para empezar el libro."
+  ]
+];
+
+// Explicaciones, estilo libro
+const explainAffirm = [
+  [
+    "1/2 · AFIRMATIVO",
+    "",
+    "I am   = Yo soy / Yo estoy",
+    "You are= Tu eres / estas",
+    "He is  = El es / esta",
+    "She is = Ella es / esta",
+    "It is  = Eso es / esta",
+    "We are = Nosotros somos/estamos",
+    "They are= Ellos son/estan",
+    "",
+    "En la vida real casi siempre",
+    "escucharas las contracciones:"
+  ],
+  [
+    "1/2 · AFIRMATIVO",
+    "",
+    "I'm   = I am",
+    "You're= You are",
+    "He's  = He is",
+    "She's = She is",
+    "It's  = It is",
+    "We're = We are",
+    "They're=They are",
+    "",
+    "Ejemplo:",
+    "I'm a student.",
+    "She's happy.",
+    "",
+    "ENTER = Negativo · ESC = Saltar"
+  ]
+];
+
+const explainNeg = [
+  [
+    "2/2 · NEGATIVO",
+    "",
+    "Estructura:",
+    "SUJETO + TO BE + NOT + COMPLE.",
+    "",
+    "I am not tired.",
+    "You are not ready.",
+    "He is not here.",
+    "We are not sad.",
+    "",
+    "Contracciones mas comunes:"
+  ],
+  [
+    "2/2 · NEGATIVO",
+    "",
+    "I'm not = I am not",
+    "You aren't = You are not",
+    "He isn't  = He is not",
+    "She isn't = She is not",
+    "It isn't  = It is not",
+    "We aren't = We are not",
+    "They aren't=They are not",
+    "",
+    "Ejemplo:",
+    "They're not angry.",
+    "",
+    "ENTER = Preguntas · ESC = Saltar"
+  ]
+];
+
+const explainInter = [
+  [
+    "3/3 · INTERROGATIVO",
+    "",
+    "Estructura:",
+    "TO BE + SUJETO + COMPLE. ?",
+    "",
+    "Am I late?",
+    "Are you happy?",
+    "Is he a teacher?",
+    "Are they friends?",
+    "",
+    "Respuestas cortas:",
+    "Yes, I am. / No, I'm not.",
+  ],
+  [
+    "3/3 · INTERROGATIVO",
+    "",
+    "Yes, you are. / No, you aren't.",
+    "Yes, he is.  / No, he isn't.",
+    "Yes, we are. / No, we aren't.",
+    "",
+    "Recuerda:",
+    "EN ESPANOL cambiamos el tono",
+    "para hacer preguntas.",
+    "",
+    "EN INGLES cambiamos el orden:",
+    "primero el VERB TO BE.",
+    "",
+    "ENTER = Empezar juego"
+  ]
+];
+
+// Preguntas del quiz
+const quizQuestions = [
+  {
+    type: "affirm",
+    sentence: "I ___ a student.",
+    options: ["am", "is", "are"],
+    correctIndex: 0,
+    tip: "Con I siempre usamos AM."
+  },
+  {
+    type: "affirm",
+    sentence: "They ___ from Mexico.",
+    options: ["am", "is", "are"],
+    correctIndex: 2,
+    tip: "They = plural -> ARE."
+  },
+  {
+    type: "neg",
+    sentence: "She ___ not sad.",
+    options: ["am", "is", "are"],
+    correctIndex: 1,
+    tip: "She -> IS / ISN'T."
+  },
+  {
+    type: "neg",
+    sentence: "We ___ not tired.",
+    options: ["am", "is", "are"],
+    correctIndex: 2,
+    tip: "We -> ARE / AREN'T."
+  },
+  {
+    type: "inter",
+    sentence: "___ you ready?",
+    options: ["Am", "Is", "Are"],
+    correctIndex: 2,
+    tip: "You -> ARE you...?"
+  },
+  {
+    type: "inter",
+    sentence: "___ he your friend?",
+    options: ["Am", "Is", "Are"],
+    correctIndex: 1,
+    tip: "He -> IS he...?"
+  },
+  {
+    type: "mixed",
+    sentence: "She ___ a gamer.",
+    options: ["am", "is", "are"],
+    correctIndex: 1,
+    tip: "She is."
+  },
+  {
+    type: "mixed",
+    sentence: "They ___ not at home.",
+    options: ["am", "is", "are"],
+    correctIndex: 2,
+    tip: "They are not."
+  }
+];
+
+state.totalQuestions = quizQuestions.length;
+
+// Utilidades de dibujo
+function clearScreen() {
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function drawFrame() {
+  ctx.fillStyle = COLORS.darker;
+  ctx.fillRect(6, 6, canvas.width - 12, canvas.height - 12);
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(10, 10, canvas.width - 20, canvas.height - 20);
+}
+
+function drawText(lines, x, y, lineHeight = 12) {
+  ctx.fillStyle = COLORS.text;
+  ctx.font = "10px monospace";
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], x, y + i * lineHeight);
+  }
+}
+
+// Pantallas
+function renderTitle() {
+  clearScreen();
+  drawFrame();
+
+  ctx.fillStyle = COLORS.dark;
+  ctx.fillRect(40, 40, 240, 40);
+
+  ctx.fillStyle = COLORS.light;
+  ctx.font = "14px monospace";
+  ctx.fillText("VERB TO BE", 92, 65);
+
+  ctx.font = "10px monospace";
+  ctx.fillText("Game Boy Edition", 100, 80);
+
+  const lines = [
+    "",
+    "Aprende TO BE (ser/estar)",
+    "con estilo consola retro.",
+    "",
+    "Para hispanohablantes A1.",
+    "",
+    "Presiona ENTER para empezar."
+  ];
+  drawText(lines, 30, 100);
+}
+
+function renderStory() {
+  clearScreen();
+  drawFrame();
+  drawText(storyPages[state.storyPage], 18, 26);
+  ctx.font = "9px monospace";
+  ctx.fillText("Historia", 12, 18);
+}
+
+function renderExplainBlock(block, label) {
+  clearScreen();
+  drawFrame();
+  drawText(block[state.explainPage], 18, 26);
+  ctx.font = "9px monospace";
+  ctx.fillText(label, 12, 18);
+}
+
+function renderQuiz() {
+  clearScreen();
+  drawFrame();
+
+  const q = quizQuestions[state.quizIndex];
+
+  // Titulo
+  ctx.fillStyle = COLORS.dark;
+  ctx.fillRect(12, 14, 296, 20);
+  ctx.fillStyle = COLORS.light;
+  ctx.font = "10px monospace";
+  ctx.fillText("Quiz · Verb TO BE", 20, 28);
+
+  // Pregunta
+  ctx.fillStyle = COLORS.text;
+  ctx.font = "11px monospace";
+  ctx.fillText(q.sentence, 30, 70);
+
+  // Opciones
+  ctx.font = "10px monospace";
+  for (let i = 0; i < q.options.length; i++) {
+    const isSelected = (i === state.selectionIndex);
+    const y = 110 + i * 22;
+
+    if (isSelected) {
+      ctx.fillStyle = COLORS.dark;
+      ctx.fillRect(50, y - 12, 220, 18);
+      ctx.fillStyle = COLORS.light;
+      ctx.fillText("> " + q.options[i], 58, y);
+    } else {
+      ctx.fillStyle = COLORS.text;
+      ctx.fillText("  " + q.options[i], 58, y);
+    }
+  }
+
+  // Progreso y tip
+  ctx.font = "9px monospace";
+  ctx.fillStyle = COLORS.dark;
+  ctx.fillText(
+    `Pregunta ${state.quizIndex + 1}/${state.totalQuestions}`,
+    30,
+    190
+  );
+
+  ctx.fillStyle = COLORS.text;
+  ctx.fillText(q.tip, 30, 210);
+  ctx.fillText("ENTER = responder", 30, 226);
+}
+
+function renderSummary() {
+  clearScreen();
+  drawFrame();
+
+  const percent = Math.round((state.score / state.totalQuestions) * 100);
+
+  const lines = [
+    "FIN DEL LIBRO-JUEGO",
+    "",
+    `Puntaje: ${state.score} / ${state.totalQuestions}`,
+    `Aciertos: ${percent}%`,
+    "",
+    percent === 100
+      ? "¡Perfecto! Eres el rey del TO BE."
+      : percent >= 75
+      ? "Muy bien, ya dominas lo basico."
+      : "Repite el juego y lee las",
+    percent >= 75 ? "" : "explicaciones con calma.",
+    "",
+    "Consejo:",
+    "Usa TO BE todos los dias:",
+    "I'm tired, I'm happy, I'm a gamer,",
+    "We're students, They're friends.",
+    "",
+    "ENTER = Volver al titulo"
+  ];
+  drawText(lines, 26, 40);
+}
+
+// Loop principal
+function gameLoop() {
+  switch (state.screen) {
+    case SCREENS.TITLE:
+      renderTitle();
+      break;
+    case SCREENS.STORY:
+      renderStory();
+      break;
+    case SCREENS.EXPLAIN_AFFIRM:
+      renderExplainBlock(explainAffirm, "Libro 1 · Afirmativo");
+      break;
+    case SCREENS.EXPLAIN_NEG:
+      renderExplainBlock(explainNeg, "Libro 2 · Negativo");
+      break;
+    case SCREENS.EXPLAIN_INTER:
+      renderExplainBlock(explainInter, "Libro 3 · Preguntas");
+      break;
+    case SCREENS.QUIZ:
+      renderQuiz();
+      break;
+    case SCREENS.SUMMARY:
+      renderSummary();
+      break;
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
+
+// Input
+window.addEventListener("keydown", (e) => {
+  const key = e.key;
+
+  if (state.screen === SCREENS.TITLE) {
+    if (key === "Enter") {
+      state.screen = SCREENS.STORY;
+      state.storyPage = 0;
+    }
+    return;
+  }
+
+  if (state.screen === SCREENS.STORY) {
+    if (key === "Enter") {
+      if (state.storyPage < storyPages.length - 1) {
+        state.storyPage++;
+      } else {
+        state.screen = SCREENS.EXPLAIN_AFFIRM;
+        state.explainPage = 0;
+      }
+    }
+    return;
+  }
+
+  if (
+    state.screen === SCREENS.EXPLAIN_AFFIRM ||
+    state.screen === SCREENS.EXPLAIN_NEG ||
+    state.screen === SCREENS.EXPLAIN_INTER
+  ) {
+    // Cambiar pagina
+    if (key === "Enter") {
+      const maxPage =
+        state.screen === SCREENS.EXPLAIN_AFFIRM
+          ? explainAffirm.length
+          : state.screen === SCREENS.EXPLAIN_NEG
+          ? explainNeg.length
+          : explainInter.length;
+
+      if (state.explainPage < maxPage - 1) {
+        state.explainPage++;
+      } else {
+        if (state.screen === SCREENS.EXPLAIN_AFFIRM) {
+          state.screen = SCREENS.EXPLAIN_NEG;
+          state.explainPage = 0;
+        } else if (state.screen === SCREENS.EXPLAIN_NEG) {
+          state.screen = SCREENS.EXPLAIN_INTER;
+          state.explainPage = 0;
+        } else {
+          // Pasar al quiz
+          state.screen = SCREENS.QUIZ;
+          state.selectionIndex = 0;
+        }
+      }
+    }
+
+    // Saltar explicaciones
+    if (key === "Escape") {
+      state.screen = SCREENS.QUIZ;
+      state.selectionIndex = 0;
+    }
+
+    return;
+  }
+
+  if (state.screen === SCREENS.QUIZ) {
+    const q = quizQuestions[state.quizIndex];
+
+    if (key === "ArrowUp") {
+      state.selectionIndex =
+        (state.selectionIndex - 1 + q.options.length) % q.options.length;
+    } else if (key === "ArrowDown") {
+      state.selectionIndex =
+        (state.selectionIndex + 1) % q.options.length;
+    } else if (key === "Enter") {
+      if (state.selectionIndex === q.correctIndex) {
+        state.score++;
+        flashMessage("Correcto!");
+      } else {
+        flashMessage(
+          `Incorrecto. Correcto: ${q.options[q.correctIndex]}`
+        );
+      }
+
+      if (state.quizIndex < quizQuestions.length - 1) {
+        state.quizIndex++;
+        state.selectionIndex = 0;
+      } else {
+        state.screen = SCREENS.SUMMARY;
+      }
+    }
+    return;
+  }
+
+  if (state.screen === SCREENS.SUMMARY) {
+    if (key === "Enter") {
+      // Reiniciar
+      state.screen = SCREENS.TITLE;
+      state.selectionIndex = 0;
+      state.storyPage = 0;
+      state.explainPage = 0;
+      state.quizIndex = 0;
+      state.score = 0;
+    }
+  }
+});
+
+// Pequeño flash de mensaje (barra inferior)
+let flashText = "";
+let flashTimer = 0;
+
+function flashMessage(msg) {
+  flashText = msg;
+  flashTimer = 60; // frames
+}
+
+const oldLoop = gameLoop.toString; // solo para aclarar que ya está definido
+
+// Sobrescribimos el loop con overlay de mensaje
+(function patchedLoop() {
+  switch (state.screen) {
+    case SCREENS.TITLE:
+      renderTitle();
+      break;
+    case SCREENS.STORY:
+      renderStory();
+      break;
+    case SCREENS.EXPLAIN_AFFIRM:
+      renderExplainBlock(explainAffirm, "Libro 1 · Afirmativo");
+      break;
+    case SCREENS.EXPLAIN_NEG:
+      renderExplainBlock(explainNeg, "Libro 2 · Negativo");
+      break;
+    case SCREENS.EXPLAIN_INTER:
+      renderExplainBlock(explainInter, "Libro 3 · Preguntas");
+      break;
+    case SCREENS.QUIZ:
+      renderQuiz();
+      break;
+    case SCREENS.SUMMARY:
+      renderSummary();
+      break;
+  }
+
+  if (flashTimer > 0) {
+    ctx.fillStyle = COLORS.darker;
+    ctx.fillRect(0, canvas.height - 24, canvas.width, 24);
+    ctx.fillStyle = COLORS.light;
+    ctx.font = "10px monospace";
+    ctx.fillText(flashText, 14, canvas.height - 8);
+    flashTimer--;
+  }
+
+  requestAnimationFrame(patchedLoop);
+})();
+</script>
+</body>
+</html>
