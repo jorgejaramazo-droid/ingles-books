@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>City Life: Common Verbs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    /* ================= ESTILO GBC GOLD ================= */
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none; }
+    
+    body {
+      margin: 0; padding: 0;
+      background: #2f3640; /* Fondo oscuro elegante */
+      background-image: linear-gradient(0deg, transparent 24%, rgba(255, 255, 255, .05) 25%, rgba(255, 255, 255, .05) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .05) 75%, rgba(255, 255, 255, .05) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(255, 255, 255, .05) 25%, rgba(255, 255, 255, .05) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .05) 75%, rgba(255, 255, 255, .05) 76%, transparent 77%, transparent);
+      background-size: 50px 50px;
+      display: flex; justify-content: center; align-items: center;
+      height: 100vh; overflow: hidden;
+      font-family: 'Courier New', Courier, monospace;
+      color: #333;
+    }
+
+    #game-container {
+      display: flex; flex-direction: column; align-items: center;
+      transform: scale(1); transition: transform 0.2s;
+    }
+
+    /* Carcasa Amarilla */
+    #console-body {
+      background: #f1c40f; /* Amarillo Pikachu/Gold */
+      padding: 20px 25px 50px 25px;
+      border-radius: 15px 15px 60px 15px;
+      box-shadow: 
+        inset 5px 5px 20px rgba(255,255,255,0.4), 
+        inset -5px -5px 20px rgba(211, 84, 0, 0.2),
+        10px 10px 25px rgba(0,0,0,0.6);
+      border: 3px solid #f39c12;
+      width: 350px;
+      display: flex; flex-direction: column; align-items: center;
+      position: relative;
+    }
+
+    /* Pantalla */
+    #screen-border {
+      background: #2c3e50;
+      padding: 15px 35px;
+      border-radius: 10px 10px 50px 10px;
+      margin-bottom: 25px;
+      width: 100%;
+      box-shadow: inset 2px 2px 5px rgba(0,0,0,0.8);
+      display: flex; flex-direction: column; align-items: center;
+      position: relative;
+    }
+
+    /* Luz de batería */
+    .battery-led {
+      position: absolute; top: 30%; left: 10px;
+      width: 8px; height: 8px; background: #e74c3c; border-radius: 50%;
+      box-shadow: 0 0 5px #e74c3c;
+    }
+
+    .brand-text {
+      color: #95a5a6; font-family: sans-serif; font-style: italic; font-weight: bold; font-size: 12px;
+      margin-bottom: 5px; width: 100%; text-align: right; letter-spacing: 1px;
+    }
+
+    canvas {
+      background: #ecf0f1; /* Pantalla casi blanca tipo GBC */
+      border: 2px solid #000;
+      image-rendering: pixelated;
+      box-shadow: inset 2px 2px 5px rgba(0,0,0,0.1);
+    }
+
+    /* === CONTROLES === */
+    .controls-row {
+      display: flex; justify-content: space-between; width: 100%; padding: 0 10px; align-items: center;
+    }
+
+    .dpad {
+      width: 100px; height: 100px; position: relative;
+    }
+    .dpad-bg { position: absolute; background: #2c3e50; border-radius: 4px; box-shadow: 2px 2px 0px rgba(0,0,0,0.3); }
+    .d-v { top: 0; left: 35px; width: 30px; height: 100px; }
+    .d-h { top: 35px; left: 0; width: 100px; height: 30px; }
+    .d-c { top: 35px; left: 35px; width: 30px; height: 30px; background: #34495e; z-index: 2; border-radius: 50%; }
+
+    /* Touch Zones */
+    .btn-touch { position: absolute; z-index: 10; cursor: pointer; }
+    .t-up { top:0; left:0; width:100%; height:45%; }
+    .t-down { bottom:0; left:0; width:100%; height:45%; }
+
+    /* Botones A/B */
+    .action-group {
+      display: flex; gap: 15px; transform: rotate(-15deg); margin-top: 10px;
+    }
+    .btn-round {
+      width: 45px; height: 45px; border-radius: 50%;
+      background: #2c3e50; /* Botones oscuros */
+      border-bottom: 4px solid #000;
+      color: #ecf0f1; display: flex; justify-content: center; align-items: center;
+      font-weight: bold; font-family: sans-serif; font-size: 14px; cursor: pointer;
+    }
+    .btn-round:active { transform: translateY(4px); border-bottom: 0; }
+
+    /* Start/Select */
+    .menu-group {
+      display: flex; gap: 12px; margin-top: 20px;
+    }
+    .btn-pill {
+      width: 50px; height: 14px; background: #7f8c8d; border-radius: 10px;
+      transform: rotate(-15deg); border: 1px solid #2c3e50; cursor: pointer;
+    }
+
+    #meta-info { margin-top:10px; font-size: 10px; color: #bdc3c7; }
+
+    @media (max-width: 400px) { #game-container { transform: scale(0.85); } }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+  <div id="console-body">
+    
+    <div id="screen-border">
+      <div class="battery-led"></div>
+      <div class="brand-text">COLOR DISPLAY</div>
+      <canvas id="game" width="260" height="220"></canvas>
+      <div style="width:100%; text-align:center; color:#7f8c8d; font-size:8px; margin-top:5px; font-weight:bold;">POWER</div>
+    </div>
+
+    <div class="controls-row">
+      <div class="dpad">
+        <div class="dpad-bg d-v"></div>
+        <div class="dpad-bg d-h"></div>
+        <div class="dpad-bg d-c"></div>
+        <div class="btn-touch t-up" id="btn-up"></div>
+        <div class="btn-touch t-down" id="btn-down"></div>
+      </div>
+
+      <div class="action-group">
+        <div class="btn-round" id="btn-b">B</div>
+        <div class="btn-round" id="btn-a">A</div>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <div class="btn-pill" id="btn-select"></div>
+      <div class="btn-pill" id="btn-start"></div>
+    </div>
+
+  </div>
+  <div id="meta-info">CITY LIFE · GOLD EDITION · A1 VERBS</div>
+</div>
+
+<script>
+(function() {
+  const canvas = document.getElementById("game");
+  if(!canvas) return;
+  const ctx = canvas.getContext("2d");
+
+  // Paleta de colores "Gold Edition"
+  const C = {
+    bg: "#ecf0f1",    // Blanco Hueso
+    text: "#2c3e50",  // Azul Oscuro
+    highlight: "#f39c12", // Naranja
+    green: "#27ae60",
+    red: "#c0392b",
+    bar: "#2980b9"
+  };
+
+  const SCREENS = { TITLE: 0, THEORY: 1, QUIZ: 2, END: 3 };
+
+  let state = {
+    screen: SCREENS.TITLE,
+    page: 0,
+    qIndex: 0,
+    selIndex: 0,
+    score: 0,
+    msg: "",
+    timer: 0,
+    anim: 0
+  };
+
+  // --- AUDIO ---
+  let audioCtx = null;
+  function sfx(type) {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const now = audioCtx.currentTime;
+
+      if(type==='nav') { osc.frequency.setValueAtTime(250, now); osc.stop(now+0.05); }
+      if(type==='ok') { osc.frequency.setValueAtTime(400, now); osc.frequency.linearRampToValueAtTime(800, now+0.1); osc.stop(now+0.1); }
+      if(type==='win') { osc.type='square'; osc.frequency.setValueAtTime(500, now); osc.frequency.setValueAtTime(1000, now+0.1); osc.stop(now+0.2); }
+      if(type==='bad') { osc.type='sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.linearRampToValueAtTime(100, now+0.2); osc.stop(now+0.2); }
+
+      gain.gain.setValueAtTime(0.05, now);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start();
+    } catch(e){}
+  }
+
+  // --- CONTENIDO ---
+  
+  const theory = [
+    { 
+      title: "1. MEANING (SIGNIFICADO)", 
+      lines: [
+        "❤️ LIKE -> Gustar",
+        "   I like pizza.",
+        "🍕 WANT -> Querer",
+        "   I want a car.",
+        "🎒 HAVE -> Tener",
+        "   I have a dog.",
+        "💧 NEED -> Necesitar",
+        "   I need water."
+      ] 
+    },
+    { 
+      title: "2. PLACES (LUGARES)", 
+      lines: [
+        "🏠 LIVE -> Vivir",
+        "   I live in Mexico.",
+        "🚶 GO -> Ir",
+        "   I go to school.",
+        "",
+        "Use 'GO TO' + Place.",
+        "Ex: Go to the bank."
+      ] 
+    },
+    { 
+      title: "3. THE 'HE/SHE' TRAP", 
+      lines: [
+        "Para HE, SHE, IT:",
+        "",
+        "⚠️ HAVE -> HAS",
+        "   She HAS a cat.",
+        "⚠️ GO -> GOES",
+        "   He GOES to work.",
+        "",
+        "Los demás solo +S:",
+        "Likes, Wants, Needs, Lives."
+      ] 
+    }
+  ];
+
+  const questions = [
+    // --- BASIC MEANING ---
+    { q: "I ___ chocolate. ❤️", opts: ["want", "like", "live"], ans: 1, tip: "Corazón = LIKE." },
+    { q: "I ___ a new phone. 📱", opts: ["go", "want", "live"], ans: 1, tip: "Querer = WANT." },
+    { q: "We ___ in Colombia. 🏠", opts: ["live", "go", "has"], ans: 0, tip: "Vivir = LIVE." },
+    { q: "They ___ to the park. 🚶", opts: ["go", "have", "need"], ans: 0, tip: "Ir = GO." },
+    { q: "You ___ water to survive. 💧", opts: ["need", "like", "live"], ans: 0, tip: "Necesitar = NEED." },
+    
+    // --- HE/SHE/IT GRAMMAR (Rules) ---
+    { q: "She ___ two brothers.", opts: ["have", "has", "haves"], ans: 1, tip: "She -> HAS." },
+    { q: "My dad ___ a red car.", opts: ["has", "have", "is"], ans: 0, tip: "He -> HAS." },
+    { q: "He ___ to school by bus.", opts: ["go", "gos", "goes"], ans: 2, tip: "He -> GOES." },
+    { q: "My sister ___ to the gym.", opts: ["goes", "go", "going"], ans: 0, tip: "She -> GOES." },
+    { q: "The dog ___ food.", opts: ["want", "wants", "is want"], ans: 1, tip: "It -> WANTS (+S)." },
+    { q: "Paul ___ in London.", opts: ["live", "lives", "living"], ans: 1, tip: "He -> LIVES (+S)." },
+
+    // --- CONTEXT / LOGIC ---
+    { q: "I am hungry. I ___ a sandwich.", opts: ["want", "live", "go"], ans: 0, tip: "Hambre = Querer comida." },
+    { q: "I am tired. I ___ to bed.", opts: ["go", "have", "like"], ans: 0, tip: "Ir a la cama." },
+    { q: "It is raining. I ___ an umbrella.", opts: ["like", "need", "go"], ans: 1, tip: "Lluvia = Necesitar paraguas." },
+    { q: "This house is big. I ___ it!", opts: ["like", "live", "go"], ans: 0, tip: "Me gusta." },
+
+    // --- NEGATIVE (Don't / Doesn't) ---
+    { q: "I don't ___ sushi.", opts: ["likes", "like", "liking"], ans: 1, tip: "Negativo = Verbo normal." },
+    { q: "She doesn't ___ a bike.", opts: ["has", "have", "haves"], ans: 1, tip: "Con Doesn't -> HAVE (No Has)." },
+    { q: "He doesn't ___ here.", opts: ["live", "lives", "living"], ans: 0, tip: "Con Doesn't -> LIVE (No S)." },
+
+    // --- MIXED CHALLENGE ---
+    { q: "___ you ___ pizza?", opts: ["Do / like", "Does / like", "Do / likes"], ans: 0, tip: "You -> DO." },
+    { q: "Where ___ she ___?", opts: ["do / live", "does / live", "does / lives"], ans: 1, tip: "She -> Does. Live normal." },
+    { q: "We ___ (go) and he ___ (go).", opts: ["go / goes", "goes / go", "go / go"], ans: 0, tip: "We GO. He GOES." },
+    { q: "I ___ (have) money, but she ___ (not).", opts: ["have / doesn't", "has / don't", "have / don't"], ans: 0, tip: "I have. She doesn't." }
+  ];
+
+  // --- RENDER ---
+  function drawText(txt, x, y, size=12, align="center", color=C.text) {
+    ctx.fillStyle = color; ctx.font = "bold "+size+"px monospace"; ctx.textAlign = align;
+    ctx.fillText(txt, x, y);
+  }
+
+  function render() {
+    state.anim++;
+    ctx.fillStyle = C.bg; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    if(state.screen === SCREENS.TITLE) {
+      // Banner Amarillo
+      ctx.fillStyle = C.highlight; ctx.fillRect(0, 40, canvas.width, 60);
+      drawText("CITY LIFE", 130, 70, 26, "center", "#fff");
+      drawText("GOLD EDITION", 130, 90, 12, "center", "#fff");
+
+      drawText("WANT HAVE LIKE", 130, 120, 12, "center", C.text);
+      drawText("GO NEED LIVE", 130, 140, 12, "center", C.text);
+
+      if(Math.floor(state.anim/40)%2===0) {
+        drawText("PRESS START", 130, 180, 12, "center", C.text);
+      }
+    }
+    
+    else if(state.screen === SCREENS.THEORY) {
+      const p = theory[state.page];
+      // Header
+      ctx.fillStyle = C.text; ctx.fillRect(0,0,canvas.width,25);
+      drawText(p.title, 130, 17, 12, "center", "#fff");
+      
+      // Lines
+      let y = 50;
+      ctx.textAlign="left";
+      p.lines.forEach(l => {
+        if(l.includes("⚠️")) ctx.fillStyle = C.red;
+        else if(l.includes("->")) ctx.fillStyle = C.bar;
+        else ctx.fillStyle = C.text;
+        
+        ctx.font="11px monospace";
+        ctx.fillText(l, 10, y);
+        y += 18;
+      });
+
+      drawText("A: NEXT >>", 240, 210, 10, "right", C.text);
+    }
+    
+    else if(state.screen === SCREENS.QUIZ) {
+      const q = questions[state.qIndex];
+      
+      // HUD
+      ctx.fillStyle = C.highlight; ctx.fillRect(0,0,canvas.width,20);
+      drawText(`Q:${state.qIndex+1}/${questions.length}`, 10, 14, 10, "left", "#fff");
+      drawText(`SCORE:${state.score}`, 250, 14, 10, "right", "#fff");
+
+      // Pregunta
+      ctx.fillStyle = "#fff"; ctx.fillRect(10, 30, 240, 60);
+      ctx.strokeStyle = C.text; ctx.strokeRect(10,30,240,60);
+      
+      // Check for emoji sizing
+      const fontSize = q.q.match(/[\uD800-\uDBFF]/) ? 16 : 14;
+      drawText(q.q, 130, 65, fontSize, "center", C.text);
+
+      // Options
+      const startY = 110;
+      q.opts.forEach((opt, i) => {
+        const isSel = i === state.selIndex;
+        if(isSel) {
+          ctx.fillStyle = C.text; ctx.fillRect(20, startY + (i*30)-15, 220, 26);
+          drawText("● " + opt.toUpperCase(), 30, startY + (i*30)+2, 12, "left", "#fff");
+        } else {
+          drawText("○ " + opt.toUpperCase(), 30, startY + (i*30)+2, 12, "left", C.text);
+        }
+      });
+
+      // Feedback Overlay
+      if(state.timer > 0) {
+        const isCor = state.msg === "CORRECT!";
+        ctx.fillStyle = isCor ? "rgba(39, 174, 96, 0.95)" : "rgba(192, 57, 43, 0.95)";
+        ctx.fillRect(15, 80, 230, 80);
+        drawText(state.msg, 130, 115, 20, "center", "#fff");
+        if(!isCor) {
+           drawText("TIP:", 130, 135, 10, "center", "#fff");
+           drawText(q.tip, 130, 150, 9, "center", "#fff");
+        }
+      }
+    }
+
+    else if(state.screen === SCREENS.END) {
+      drawText("CITY COMPLETE", 130, 50, 18, "center", C.text);
+      
+      const pct = Math.floor((state.score/questions.length)*100);
+      drawText(`SCORE: ${state.score}`, 130, 90, 14);
+      drawText(`GRADE: ${pct}%`, 130, 110, 14);
+
+      let rank = "TOURIST 📷";
+      if(pct > 60) rank = "CITIZEN 🏠";
+      if(pct > 80) rank = "MAYOR 🎩";
+      if(pct === 100) rank = "KING 👑";
+
+      drawText(rank, 130, 150, 16, "center", C.highlight);
+      
+      if(Math.floor(state.anim/30)%2===0) {
+        drawText("PRESS A TO RESTART", 130, 200, 10);
+      }
+    }
+  }
+
+  // --- LOGIC LOOP ---
+  function loop() {
+    if(state.timer > 0) {
+      state.timer--;
+      if(state.timer===0) {
+        if(state.qIndex < questions.length-1) { state.qIndex++; state.selIndex=0; }
+        else { state.screen = SCREENS.END; }
+      }
+    }
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  function input(key) {
+    if(state.timer > 0) return;
+
+    if(state.screen === SCREENS.TITLE) {
+      if(key==='a' || key==='start') { sfx('ok'); state.screen = SCREENS.THEORY; }
+    }
+    else if(state.screen === SCREENS.THEORY) {
+      if(key==='a') {
+        sfx('nav');
+        if(state.page < theory.length-1) state.page++;
+        else { sfx('ok'); state.screen=SCREENS.QUIZ; state.qIndex=0; state.score=0; }
+      }
+      if(key==='select') { sfx('ok'); state.screen=SCREENS.QUIZ; state.qIndex=0; state.score=0; }
+    }
+    else if(state.screen === SCREENS.QUIZ) {
+      if(key==='up') { sfx('nav'); state.selIndex = (state.selIndex-1+3)%3; }
+      if(key==='down') { sfx('nav'); state.selIndex = (state.selIndex+1)%3; }
+      if(key==='a') {
+        const q = questions[state.qIndex];
+        if(state.selIndex === q.ans) {
+          state.score++; state.msg="CORRECT!"; sfx('win'); state.timer=50;
+        } else {
+          state.msg="WRONG!"; sfx('bad'); state.timer=120;
+        }
+      }
+    }
+    else if(state.screen === SCREENS.END) {
+      if(key==='a') location.reload();
+    }
+  }
+
+  // --- EVENTS ---
+  function bind(id, k) {
+    const el = document.getElementById(id);
+    if(el) {
+      el.addEventListener('mousedown', (e)=>{e.preventDefault(); input(k);});
+      el.addEventListener('touchstart', (e)=>{e.preventDefault(); input(k);}, {passive:false});
+    }
+  }
+  bind('btn-up','up'); bind('btn-down','down');
+  bind('btn-a','a'); bind('btn-b','b');
+  bind('btn-start','start'); bind('btn-select','select');
+
+  window.addEventListener('keydown', e => {
+    if(e.key==="ArrowUp") input('up');
+    if(e.key==="ArrowDown") input('down');
+    if(e.key==="Enter" || e.key==="z") input('a');
+    if(e.key==="Shift") input('select');
+  });
+
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

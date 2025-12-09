@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Daily Life RPG: Greetings & Shopping</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    /* ================= ESTILO RPG WOOD ================= */
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none; }
+    
+    body {
+      margin: 0; padding: 0;
+      background: #2d3436; /* Gris oscuro */
+      /* Textura de mesa de madera */
+      background-image: repeating-linear-gradient(45deg, #2d3436 25%, transparent 25%, transparent 75%, #2d3436 75%, #2d3436), repeating-linear-gradient(45deg, #2d3436 25%, #222 25%, #222 75%, #2d3436 75%, #2d3436);
+      background-position: 0 0, 10px 10px;
+      background-size: 20px 20px;
+      display: flex; justify-content: center; align-items: center;
+      height: 100vh; overflow: hidden;
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    #game-container {
+      display: flex; flex-direction: column; align-items: center;
+      transform: scale(1); transition: transform 0.2s;
+    }
+
+    /* Consola estilo Madera/Pergamino */
+    #console-body {
+      background: #cd853f; /* Peru / Madera */
+      padding: 15px 30px;
+      border-radius: 10px 10px 30px 10px;
+      box-shadow: 
+        inset 0 0 20px rgba(101, 67, 33, 0.6),
+        5px 5px 15px rgba(0,0,0,0.5);
+      border: 4px solid #8b4513; /* Borde madera oscura */
+      width: 360px;
+      display: flex; flex-direction: column; align-items: center;
+    }
+
+    /* Pantalla Pergamino */
+    #screen-border {
+      background: #3e2723;
+      padding: 15px 35px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      width: 100%;
+      box-shadow: inset 2px 2px 5px rgba(0,0,0,0.8);
+      display: flex; flex-direction: column; align-items: center;
+    }
+
+    .brand-logo {
+      color: #deb887; font-family: serif; font-weight: bold; font-size: 14px;
+      margin-bottom: 5px; width: 100%; text-align: center; letter-spacing: 2px;
+      text-shadow: 1px 1px 0 #000;
+    }
+
+    canvas {
+      background: #f7f1e3; /* Color Pergamino */
+      border: 2px solid #5d4037;
+      image-rendering: pixelated;
+    }
+
+    /* === CONTROLES === */
+    .controls-area {
+      display: flex; justify-content: space-between; width: 100%; align-items: flex-end; padding-bottom: 10px;
+    }
+
+    /* D-PAD Marrón */
+    .dpad {
+      width: 90px; height: 90px; position: relative;
+    }
+    .dpad-bg { position: absolute; background: #5d4037; border-radius: 4px; border: 1px solid #3e2723; }
+    .d-v { left: 30px; top: 0; width: 30px; height: 90px; }
+    .d-h { left: 0; top: 30px; width: 90px; height: 30px; }
+    .d-c { left: 30px; top: 30px; width: 30px; height: 30px; background: #4e342e; border-radius: 50%; z-index:2; }
+
+    /* Touch Zones */
+    .btn-touch { position: absolute; z-index: 10; cursor: pointer; }
+    .t-up { top:0; left:0; width:100%; height:45%; }
+    .t-down { bottom:0; left:0; width:100%; height:45%; }
+
+    /* Botones A/B Dorados */
+    .ab-group { display: flex; gap: 15px; margin-bottom: 15px; }
+    .btn-action {
+      width: 45px; height: 45px; border-radius: 50%;
+      background: #d4af37; /* Dorado */
+      border-bottom: 4px solid #b8860b;
+      color: #3e2723; display: flex; justify-content: center; align-items: center;
+      font-weight: bold; font-family: serif; cursor: pointer;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+    }
+    .btn-action:active { transform: translateY(4px); border-bottom: 0; }
+
+    /* Start/Select */
+    .meta-btns { display: flex; gap: 10px; margin-bottom: 5px; }
+    .btn-small {
+      width: 40px; height: 12px; background: #3e2723; border-radius: 6px;
+      transform: rotate(-15deg); border: 1px solid #000; cursor: pointer;
+    }
+
+    #meta-info { margin-top: 10px; font-size: 10px; color: #aaa; font-family: sans-serif; text-align: center; }
+
+    @media (max-width: 400px) { #game-container { transform: scale(0.85); } }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+  <div id="console-body">
+    
+    <div id="screen-border">
+      <div class="brand-logo">QUEST LOG</div>
+      <canvas id="game" width="280" height="180"></canvas>
+    </div>
+
+    <div class="controls-area">
+      <div class="dpad">
+        <div class="dpad-bg d-v"></div>
+        <div class="dpad-bg d-h"></div>
+        <div class="dpad-bg d-c"></div>
+        <div class="btn-touch t-up" id="btn-up"></div>
+        <div class="btn-touch t-down" id="btn-down"></div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; align-items:center;">
+         <div class="meta-btns">
+            <div class="btn-small" id="btn-select"></div>
+            <div class="btn-small" id="btn-start"></div>
+         </div>
+         <div style="font-size:8px; color:#3e2723; margin-top:2px; font-weight:bold;">SELECT START</div>
+      </div>
+
+      <div class="ab-group">
+        <div class="btn-action" id="btn-b">B</div>
+        <div class="btn-action" id="btn-a">A</div>
+      </div>
+    </div>
+
+  </div>
+  <div id="meta-info">APRENDE INGLÉS YA<br>RPG Edition · J. Jaramillo</div>
+</div>
+
+<script>
+(function() {
+  const canvas = document.getElementById("game");
+  if(!canvas) return;
+  const ctx = canvas.getContext("2d");
+
+  // Paleta RPG
+  const C = { 
+    bg: "#f7f1e3",     // Pergamino
+    ink: "#2c2c54",    // Tinta oscura
+    red: "#b33939",    // Rojo sangre/error
+    gold: "#ccae62",   // UI
+    wood: "#8b4513"    // Madera
+  };
+
+  const SCREENS = { TITLE: 0, THEORY: 1, QUIZ: 2, END: 3 };
+
+  let state = {
+    screen: SCREENS.TITLE,
+    page: 0,
+    qIndex: 0,
+    selIndex: 0,
+    score: 0,
+    msg: "",
+    timer: 0,
+    frame: 0
+  };
+
+  // --- AUDIO ---
+  let audioCtx = null;
+  function sfx(type) {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const now = audioCtx.currentTime;
+
+      if(type==='nav') { osc.type='triangle'; osc.frequency.setValueAtTime(300, now); osc.stop(now+0.05); }
+      if(type==='ok') { osc.type='square'; osc.frequency.setValueAtTime(400, now); osc.frequency.linearRampToValueAtTime(600, now+0.1); osc.stop(now+0.1); }
+      if(type==='win') { osc.type='sine'; osc.frequency.setValueAtTime(500, now); osc.frequency.setValueAtTime(800, now+0.2); osc.stop(now+0.3); }
+      if(type==='bad') { osc.type='sawtooth'; osc.frequency.setValueAtTime(100, now); osc.frequency.linearRampToValueAtTime(50, now+0.3); osc.stop(now+0.3); }
+
+      gain.gain.setValueAtTime(0.05, now);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start();
+    } catch(e){}
+  }
+
+  // --- CONTENIDO ---
+  
+  const theory = [
+    { 
+      title: "CHAPTER 1: GREETINGS", 
+      lines: [
+        "☀️ Good Morning (Antes 12pm)",
+        "⛅ Good Afternoon (12pm-6pm)",
+        "🌙 Good Evening (Hola noche)",
+        "🛌 Good Night (Adiós/Dormir)",
+        "",
+        "👋 Informal: Hi / Hello / Hey",
+        "🤝 Formal: How do you do?"
+      ] 
+    },
+    { 
+      title: "CHAPTER 2: SHOPPING", 
+      lines: [
+        "💰 Ask Price:",
+        "   How much is it? (Singular)",
+        "   How much are they? (Plural)",
+        "",
+        "🛍️ Buy:",
+        "   I'll take it.",
+        "   Can I try it on? (Probar)"
+      ] 
+    },
+    { 
+      title: "CHAPTER 3: RESTAURANT", 
+      lines: [
+        "🍽️ Ordering:",
+        "   I would like... (Me gustaría)",
+        "   Can I have...? (¿Me das?)",
+        "",
+        "🧾 Paying:",
+        "   The check, please. (Cuenta)",
+        "   Do you accept card?"
+      ] 
+    }
+  ];
+
+  const questions = [
+    // --- GREETINGS ---
+    { q: "It's 8:00 AM. You say: ☀️", opts: ["Good evening", "Good morning", "Good night"], ans: 1, tip: "AM = Morning." },
+    { q: "It's 10:00 PM (Bye). You say: 🛌", opts: ["Good night", "Good evening", "Hello"], ans: 0, tip: "Para ir a dormir = Good Night." },
+    { q: "Nice to meet you!", opts: ["I am fine", "Nice to meet you too", "Goodbye"], ans: 1, tip: "Responde: ...too (también)." },
+    { q: "Hello! How are you?", opts: ["I'm fine, thanks", "Yes, I am", "Good morning"], ans: 0, tip: "Responde el estado de ánimo." },
+    
+    // --- SHOPPING ---
+    { q: "___ is this t-shirt?", opts: ["How many", "How much", "What price"], ans: 1, tip: "Precio = HOW MUCH." },
+    { q: "Can I try it ___? (Clothes)", opts: ["on", "in", "at"], ans: 0, tip: "Probarse ropa = Try ON." },
+    { q: "Do you have this ___ Small?", opts: ["on", "in", "at"], ans: 1, tip: "Tallas = IN Small/Medium." },
+    { q: "Shop Assistant: Can I help you?", opts: ["Yes, please", "No, goodbye", "I want go"], ans: 0, tip: "Yes, please." },
+    { q: "It fits perfectly. I'll ___ it.", opts: ["buy", "take", "pay"], ans: 1, tip: "Me lo llevo = I'll TAKE it." },
+
+    // --- RESTAURANT ---
+    { q: "Waiter: Are you ready to ___?", opts: ["order", "eat", "buy"], ans: 0, tip: "Ready to ORDER (ordenar)." },
+    { q: "I ___ like a salad, please.", opts: ["will", "would", "want"], ans: 1, tip: "Polite: I WOULD like." },
+    { q: "Can I have the ___, please? 🧾", opts: ["price", "check", "money"], ans: 1, tip: "La cuenta = The CHECK (o Bill)." },
+    { q: "I am thirsty. Can I have ___?", opts: ["water", "pizza", "bread"], ans: 0, tip: "Thirsty (Sed) -> Water." },
+
+    // --- SITUATIONS MIX ---
+    { q: "Excuse me, where is the toilet?", opts: ["Yes, please", "Over there", "I don't want"], ans: 1, tip: "Over there (Por allá)." },
+    { q: "Bless you! (Someone sneezed)", opts: ["Thank you", "You're welcome", "Please"], ans: 0, tip: "Si estornudas, di Thank You." },
+    { q: "Thank you very much!", opts: ["Please", "You're welcome", "Hello"], ans: 1, tip: "De nada = You're welcome." },
+    { q: "I am sorry.", opts: ["That's okay", "You are welcome", "Please"], ans: 0, tip: "Está bien = That's okay." }
+  ];
+
+  // --- RENDER ---
+  function drawText(txt, x, y, size=12, align="center", color=C.ink) {
+    ctx.fillStyle = color; ctx.font = "bold "+size+"px monospace"; ctx.textAlign = align;
+    ctx.fillText(txt, x, y);
+  }
+
+  function render() {
+    state.frame++;
+    ctx.fillStyle = C.bg; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // Decoración de mapa (Líneas punteadas)
+    ctx.setLineDash([4, 4]); ctx.strokeStyle = "#dcdde1"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(20, 20); ctx.lineTo(260, 20); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(20, 160); ctx.lineTo(260, 160); ctx.stroke();
+    ctx.setLineDash([]);
+
+    if(state.screen === SCREENS.TITLE) {
+      drawText("DAILY LIFE RPG", 140, 60, 24, "center", "#5d4037");
+      drawText("QUEST LOG", 140, 80, 14, "center", "#8b4513");
+      
+      drawText("⚔️ Greetings", 140, 110, 12, "center", C.ink);
+      drawText("🛡️ Shopping", 140, 125, 12, "center", C.ink);
+      drawText("🍗 Restaurant", 140, 140, 12, "center", C.ink);
+
+      if(Math.floor(state.frame/30)%2===0) {
+        drawText("- PRESS START -", 140, 165, 12, "center", C.red);
+      }
+    }
+    
+    else if(state.screen === SCREENS.THEORY) {
+      const p = theory[state.page];
+      // Header Ribbon
+      ctx.fillStyle = C.wood; ctx.fillRect(0,10,canvas.width,25);
+      drawText(p.title, 140, 26, 12, "center", "#fff");
+
+      let y = 50;
+      ctx.textAlign = "left";
+      p.lines.forEach(l => {
+        ctx.fillStyle = C.ink; ctx.font = "11px monospace";
+        ctx.fillText(l, 15, y);
+        y += 16;
+      });
+
+      drawText("A: NEXT >>", 260, 170, 10, "right", C.wood);
+    }
+    
+    else if(state.screen === SCREENS.QUIZ) {
+      const q = questions[state.qIndex];
+      
+      // HUD
+      ctx.fillStyle = C.wood; ctx.fillRect(0,0,canvas.width,20);
+      drawText(`QUEST: ${state.qIndex+1}/${questions.length}`, 10, 13, 10, "left", "#fff");
+      drawText(`EXP: ${state.score}`, 270, 13, 10, "right", "#fff");
+
+      // Scroll Box
+      ctx.fillStyle = "#fff"; ctx.fillRect(10,30,260,50);
+      ctx.strokeStyle = C.wood; ctx.strokeRect(10,30,260,50);
+      
+      const fontSize = q.q.match(/[\uD800-\uDBFF]/) ? 14 : 12;
+      drawText(q.q, 140, 60, fontSize, "center", C.ink);
+
+      // Options
+      const startY = 95;
+      q.opts.forEach((opt, i) => {
+        const isSel = i === state.selIndex;
+        if(isSel) {
+          ctx.fillStyle = C.wood; ctx.fillRect(20, startY + (i*26)-14, 240, 22);
+          drawText("⚔️ " + opt, 140, startY + (i*26), 11, "center", "#fff");
+        } else {
+          drawText(opt, 140, startY + (i*26), 11, "center", C.ink);
+        }
+      });
+
+      // Feedback
+      if(state.timer > 0) {
+        const isCor = state.msg === "CORRECT!";
+        ctx.fillStyle = isCor ? "#44bd32" : "#c23616";
+        ctx.fillRect(0, 50, 280, 80);
+        ctx.strokeStyle = "#fff"; ctx.strokeRect(4,54,272,72);
+
+        drawText(state.msg, 140, 85, 20, "center", "#fff");
+        if(!isCor) {
+           drawText("SCROLL SAYS:", 140, 105, 10, "center", "#fff");
+           drawText(q.tip, 140, 120, 10, "center", "#fff");
+        }
+      }
+    }
+
+    else if(state.screen === SCREENS.END) {
+      drawText("QUEST COMPLETED", 140, 50, 18, "center", C.wood);
+      const pct = Math.floor((state.score/questions.length)*100);
+      drawText(`EXP GAINED: ${state.score}`, 140, 80, 14, "center", C.ink);
+      
+      let rank = "VILLAGER 👨‍🌾";
+      if(pct > 50) rank = "MERCHANT 💰";
+      if(pct > 80) rank = "KNIGHT ⚔️";
+      if(pct === 100) rank = "KING 👑";
+
+      drawText(rank, 140, 120, 16, "center", C.red);
+      drawText("PRESS A TO REPLAY", 140, 160, 10, "center", C.wood);
+    }
+  }
+
+  // --- LOGIC ---
+  function loop() {
+    if(state.timer > 0) {
+      state.timer--;
+      if(state.timer===0) {
+        if(state.qIndex < questions.length-1) { state.qIndex++; state.selIndex=0; }
+        else { state.screen = SCREENS.END; }
+      }
+    }
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  function input(key) {
+    if(state.timer > 0) return;
+
+    if(state.screen === SCREENS.TITLE) {
+      if(key==='a' || key==='start') { sfx('ok'); state.screen = SCREENS.THEORY; }
+    }
+    else if(state.screen === SCREENS.THEORY) {
+      if(key==='a') {
+        sfx('nav');
+        if(state.page < theory.length-1) state.page++;
+        else { sfx('ok'); state.screen=SCREENS.QUIZ; state.qIndex=0; state.score=0; }
+      }
+      if(key==='select') { sfx('ok'); state.screen=SCREENS.QUIZ; state.qIndex=0; state.score=0; }
+    }
+    else if(state.screen === SCREENS.QUIZ) {
+      if(key==='up') { sfx('nav'); state.selIndex = (state.selIndex-1+3)%3; }
+      if(key==='down') { sfx('nav'); state.selIndex = (state.selIndex+1)%3; }
+      if(key==='a') {
+        const q = questions[state.qIndex];
+        if(state.selIndex === q.ans) {
+          state.score++; state.msg="CORRECT!"; sfx('win'); state.timer=50;
+        } else {
+          state.msg="WRONG!"; sfx('bad'); state.timer=120;
+        }
+      }
+    }
+    else if(state.screen === SCREENS.END) {
+      if(key==='a') location.reload();
+    }
+  }
+
+  // --- EVENTS ---
+  function bind(id, k) {
+    const el = document.getElementById(id);
+    if(el) {
+      el.addEventListener('mousedown', (e)=>{e.preventDefault(); input(k);});
+      el.addEventListener('touchstart', (e)=>{e.preventDefault(); input(k);}, {passive:false});
+    }
+  }
+  bind('btn-up','up'); bind('btn-down','down');
+  bind('btn-a','a'); bind('btn-b','b');
+  bind('btn-start','start'); bind('btn-select','select');
+
+  window.addEventListener('keydown', e => {
+    if(e.key==="ArrowUp") input('up');
+    if(e.key==="ArrowDown") input('down');
+    if(e.key==="Enter" || e.key==="z") input('a');
+    if(e.key==="Shift") input('select');
+  });
+
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

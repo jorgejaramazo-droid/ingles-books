@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Chrono Quest: Ultimate Edition</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    /* ================= ESTILOS RETRO CONSOLA ================= */
+    * { 
+      box-sizing: border-box; 
+      -webkit-tap-highlight-color: transparent; 
+      touch-action: manipulation; 
+      user-select: none; /* Evita seleccionar texto al jugar */
+    }
+    
+    body {
+      margin: 0; padding: 0;
+      background: #121212;
+      /* Patrón de fondo estilo mesa de trabajo */
+      background-image: radial-gradient(#333 1px, transparent 1px);
+      background-size: 20px 20px;
+      display: flex; justify-content: center; align-items: center;
+      height: 100vh; overflow: hidden;
+      font-family: 'Courier New', Courier, monospace;
+      color: #eee;
+    }
+
+    #game-container {
+      display: flex; flex-direction: column; align-items: center;
+      transform: scale(1);
+      transition: transform 0.2s;
+    }
+
+    /* Cuerpo de la consola */
+    #console-body {
+      background: #d63031; /* Rojo Intenso */
+      padding: 20px 25px 40px 25px;
+      border-radius: 15px 15px 60px 15px;
+      box-shadow: 
+        inset 5px 5px 15px rgba(255,255,255,0.2), 
+        inset -5px -5px 15px rgba(0,0,0,0.3),
+        10px 10px 30px rgba(0,0,0,0.6);
+      border: 2px solid #b71c1c;
+      width: 340px;
+      display: flex; flex-direction: column; align-items: center;
+      position: relative;
+    }
+
+    /* Marco de la pantalla */
+    #screen-border {
+      background: #444;
+      padding: 15px 25px;
+      border-radius: 10px 10px 40px 10px;
+      margin-bottom: 25px;
+      width: 100%;
+      box-shadow: inset 2px 2px 5px rgba(0,0,0,0.8);
+      display: flex; flex-direction: column; align-items: center;
+      position: relative;
+    }
+
+    /* Decoración "POWER" */
+    .power-led {
+      position: absolute; top: 40px; left: 10px;
+      width: 8px; height: 8px; background: #f00; border-radius: 50%;
+      box-shadow: 0 0 5px #f00; opacity: 0.8;
+    }
+
+    canvas {
+      background: #9fac82; /* Verde LCD clásico */
+      border: 3px solid #2d3436;
+      image-rendering: pixelated; /* Píxeles nítidos */
+      box-shadow: inset 3px 3px 5px rgba(0,0,0,0.2);
+    }
+
+    /* === ZONA DE CONTROLES === */
+    .controls-row {
+      display: flex; justify-content: space-between; width: 100%; padding: 0 10px; align-items: center;
+    }
+
+    /* Cruzeta (D-PAD) */
+    .dpad {
+      width: 100px; height: 100px; position: relative;
+    }
+    .dpad-bg {
+      position: absolute; background: #222; border-radius: 4px; 
+      box-shadow: 2px 2px 0px #000;
+    }
+    .d-vert { top: 0; left: 35px; width: 30px; height: 100px; }
+    .d-horz { top: 35px; left: 0; width: 100px; height: 30px; }
+    .d-center { top: 35px; left: 35px; width: 30px; height: 30px; background: #1a1a1a; z-index: 2; border-radius: 50%; box-shadow: inset 1px 1px 3px rgba(255,255,255,0.1); }
+
+    /* Botones invisibles para Touch */
+    .btn-touch {
+      position: absolute; z-index: 10; cursor: pointer;
+      /* background: rgba(255,0,0,0.2); Descomentar para ver zonas tactiles */ 
+    }
+    .touch-up { top: 0; left: 0; width: 100%; height: 50%; }
+    .touch-down { bottom: 0; left: 0; width: 100%; height: 50%; }
+
+    /* Botones A/B */
+    .action-btns {
+      display: flex; gap: 15px; transform: rotate(-10deg); margin-top: 20px;
+    }
+    .round-btn {
+      width: 50px; height: 50px; border-radius: 50%;
+      background: #2d3436; border-bottom: 4px solid #000;
+      color: #636e72; display: flex; justify-content: center; align-items: center;
+      font-weight: bold; font-family: sans-serif; font-size: 14px; cursor: pointer;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+    }
+    .round-btn:active { transform: translateY(4px); border-bottom: 0; box-shadow: inset 0 0 5px #000; }
+
+    /* Start/Select */
+    .menu-btns {
+      display: flex; gap: 15px; margin-top: 20px;
+    }
+    .pill-btn {
+      width: 55px; height: 16px; background: #636e72; border-radius: 10px;
+      transform: rotate(-10deg); border: 1px solid #2d3436; cursor: pointer;
+      box-shadow: 1px 1px 2px #000;
+    }
+    .pill-btn:active { transform: rotate(-10deg) translateY(2px); }
+
+    #meta-info { margin-top:10px; font-size: 10px; color: #666; text-align: center; }
+
+    /* Ajuste para móviles pequeños */
+    @media (max-width: 400px) { #game-container { transform: scale(0.85); } }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+  <div id="console-body">
+    
+    <div id="screen-border">
+      <div class="power-led"></div>
+      <div style="width:100%; display:flex; justify-content:space-between; color:#b2bec3; font-size:9px; margin-bottom:5px; font-weight:bold; font-family: sans-serif;">
+        <span>BATTERY</span><span>DOT MATRIX STEREO SOUND</span>
+      </div>
+      <canvas id="game" width="260" height="230"></canvas>
+    </div>
+
+    <div class="controls-row">
+      <div class="dpad">
+        <div class="dpad-bg d-vert"></div>
+        <div class="dpad-bg d-horz"></div>
+        <div class="dpad-bg d-center"></div>
+        <div class="btn-touch touch-up" id="btn-up"></div>
+        <div class="btn-touch touch-down" id="btn-down"></div>
+      </div>
+
+      <div class="action-btns">
+        <div class="round-btn" id="btn-b">B</div>
+        <div class="round-btn" id="btn-a">A</div>
+      </div>
+    </div>
+
+    <div class="menu-btns">
+      <div class="pill-btn" id="btn-select"></div>
+      <div class="pill-btn" id="btn-start"></div>
+    </div>
+
+  </div>
+  <div id="meta-info">APRENDE INGLÉS YA<br>Ultimate Edition 2025</div>
+</div>
+
+<script>
+// Usamos una función autoejecutable para proteger el código
+(function() {
+
+  const canvas = document.getElementById("game");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+
+  // --- CONFIGURACIÓN GRÁFICA ---
+  const COLORS = { 
+    bg: "#9fac82",     // Verde Gameboy
+    dark: "#2d3624",   // Verde oscuro texto
+    black: "#0f120d",  // Casi negro
+    ui: "#1e272e"      // UI elements
+  };
+  const SCREENS = { TITLE: 0, THEORY: 1, QUIZ: 2, END: 3 };
+
+  // --- ESTADO DEL JUEGO ---
+  let state = {
+    screen: SCREENS.TITLE,
+    page: 0,
+    qIndex: 0,
+    selIndex: 0,
+    score: 0,
+    msg: "",     // Mensaje flash (Correcto/Incorrecto)
+    timer: 0,    // Timer para pausas visuales
+    blink: 0     // Para efectos visuales
+  };
+
+  // --- SISTEMA DE AUDIO (Anti-Bloqueo) ---
+  let audioCtx = null;
+  
+  function playSound(type) {
+    // Solo inicia el contexto si el usuario interactúa
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const now = audioCtx.currentTime;
+
+      if (type === 'move') {
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+        gain.gain.setValueAtTime(0.05, now);
+        osc.stop(now + 0.05);
+      } else if (type === 'ok') {
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.setValueAtTime(600, now + 0.05);
+        gain.gain.setValueAtTime(0.05, now);
+        osc.stop(now + 0.1);
+      } else if (type === 'win') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.setValueAtTime(880, now + 0.1);
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.3);
+        osc.stop(now + 0.3);
+      } else if (type === 'bad') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.linearRampToValueAtTime(50, now + 0.2);
+        gain.gain.setValueAtTime(0.1, now);
+        osc.stop(now + 0.3);
+      }
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+    } catch (e) {
+      console.log("Audio desactivado (política del navegador)");
+    }
+  }
+
+  // --- CONTENIDO EDUCATIVO COMPLETO ---
+  
+  const theory = [
+    { 
+      title: "1. THE GOLDEN RULE", 
+      lines: [
+        "Present Simple Affirmative:", 
+        "I / You / We / They -> Normal",
+        "PLAY, EAT, WORK",
+        "",
+        "He / She / It -> Add 'S'", 
+        "PLAYS, EATS, WORKS",
+        "",
+        "Example: She plays tennis."
+      ] 
+    },
+    { 
+      title: "2. SPELLING RULES", 
+      lines: [
+        "If verb ends in O, CH, SH, X:", 
+        "Add 'ES' (He/She/It)",
+        "Go->Goes, Watch->Watches",
+        "",
+        "If verb ends in Consonant + Y:",
+        "Change Y to IES",
+        "Study -> Studies",
+        "Cry -> Cries"
+      ] 
+    },
+    { 
+      title: "3. THE NEGATIVE", 
+      lines: [
+        "Use AUXILIARY verbs:",
+        "I/You/We/They -> DON'T",
+        "He/She/It -> DOESN'T",
+        "",
+        "!!! WARNING !!!",
+        "If you use DOESN'T,",
+        "the verb has NO 'S'.",
+        "She doesn't play (Not plays)."
+      ] 
+    },
+    { 
+      title: "4. QUESTIONS", 
+      lines: [
+        "Auxiliary goes first:",
+        "DO you like pizza?",
+        "DOES she live here?",
+        "",
+        "Wh- Questions:",
+        "Where DO you live?",
+        "What DOES he eat?"
+      ] 
+    }
+  ];
+
+  // 30 PREGUNTAS (Curva de dificultad)
+  const questions = [
+    // NIVEL 1: HE/SHE/IT Básico
+    { q: "She ___ (read) books.", opts: ["read", "reads", "reading"], ans: 1, tip: "She necesita 'S'." },
+    { q: "My father ___ (cook).", opts: ["cooks", "cook", "is cook"], ans: 0, tip: "My father = He -> +S." },
+    { q: "They ___ (live) in Peru.", opts: ["lives", "live", "living"], ans: 1, tip: "They va NORMAL." },
+    { q: "It ___ (rain) a lot.", opts: ["rain", "rains", "raining"], ans: 1, tip: "It necesita 'S'." },
+    { q: "You ___ (look) happy.", opts: ["looks", "look", "looking"], ans: 1, tip: "You va NORMAL." },
+
+    // NIVEL 2: ORTOGRAFÍA (Spelling)
+    { q: "He ___ (go) to school.", opts: ["go", "gos", "goes"], ans: 2, tip: "Termina en O -> +ES." },
+    { q: "Sarah ___ (watch) TV.", opts: ["watches", "watchs", "watch"], ans: 0, tip: "Termina en CH -> +ES." },
+    { q: "The baby ___ (cry).", opts: ["crys", "cries", "cry"], ans: 1, tip: "Y cambia a IES." },
+    { q: "She ___ (study) English.", opts: ["studys", "studies", "study"], ans: 1, tip: "Y cambia a IES." },
+    { q: "He ___ (fix) cars.", opts: ["fix", "fixes", "fixs"], ans: 1, tip: "Termina en X -> +ES." },
+
+    // NIVEL 3: NEGATIVOS (Don't / Doesn't)
+    { q: "I ___ like broccoli.", opts: ["doesn't", "don't", "not"], ans: 1, tip: "I -> Don't." },
+    { q: "She ___ speak Italian.", opts: ["don't", "doesn't", "no"], ans: 1, tip: "She -> Doesn't." },
+    { q: "We ___ have money.", opts: ["doesn't", "isn't", "don't"], ans: 2, tip: "We -> Don't." },
+    { q: "My dog ___ bite.", opts: ["doesn't", "don't", "aren't"], ans: 0, tip: "Dog (It) -> Doesn't." },
+    
+    // NIVEL 4: LA TRAMPA DE LA 'S' (Negative)
+    { q: "He doesn't ___ (play).", opts: ["plays", "play", "playing"], ans: 1, tip: "Con Doesn't, quita la S." },
+    { q: "She doesn't ___ (watch) TV.", opts: ["watch", "watches", "watching"], ans: 0, tip: "Con Doesn't, verbo NORMAL." },
+    { q: "It doesn't ___ (work).", opts: ["works", "work", "is work"], ans: 1, tip: "Doesn't ya tiene la S." },
+
+    // NIVEL 5: PREGUNTAS (Do / Does)
+    { q: "___ you speak English?", opts: ["Does", "Do", "Are"], ans: 1, tip: "You -> Do." },
+    { q: "___ she like cats?", opts: ["Do", "Does", "Is"], ans: 1, tip: "She -> Does." },
+    { q: "___ they work here?", opts: ["Do", "Does", "Have"], ans: 0, tip: "They -> Do." },
+    { q: "___ Paul live in London?", opts: ["Do", "Does", "Is"], ans: 1, tip: "Paul (He) -> Does." },
+
+    // NIVEL 6: ADVERBIOS DE FRECUENCIA & TO BE
+    { q: "I ___ happy.", opts: ["always am", "am always", "always"], ans: 1, tip: "To Be va ANTES de Always." },
+    { q: "He ___ arrives late.", opts: ["never", "is", "don't"], ans: 0, tip: "He NEVER arrives (Verbo con S)." },
+    { q: "We ___ play football.", opts: ["sometimes", "are", "is"], ans: 0, tip: "We SOMETIMES play." },
+
+    // NIVEL 7: WH- QUESTIONS & MIX FINAL
+    { q: "Where ___ she go?", opts: ["do", "does", "is"], ans: 1, tip: "She -> Does." },
+    { q: "What ___ you eat?", opts: ["does", "do", "are"], ans: 1, tip: "You -> Do." },
+    { q: "Who ___ that man?", opts: ["is", "does", "do"], ans: 0, tip: "Verbo To Be (Es)." },
+    { q: "My mom and dad ___ work.", opts: ["doesn't", "don't", "not"], ans: 1, tip: "Plural (They) -> Don't." },
+    { q: "___ (Do/Does) it eat meat?", opts: ["Do", "Does", "Is"], ans: 1, tip: "It -> Does." }
+  ];
+
+  // --- MOTOR DE RENDERIZADO ---
+  
+  function drawText(txt, x, y, size=12, align="left", color=COLORS.dark) {
+    ctx.fillStyle = color;
+    ctx.font = "bold " + size + "px monospace";
+    ctx.textAlign = align;
+    ctx.fillText(txt, x, y);
+  }
+
+  function render() {
+    // 1. Limpiar
+    ctx.fillStyle = COLORS.bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 2. Pantallas
+    if (state.screen === SCREENS.TITLE) {
+      // Caja título
+      ctx.fillStyle = COLORS.black; 
+      ctx.fillRect(20, 40, 220, 60);
+      
+      drawText("CHRONO", 130, 70, 22, "center", COLORS.bg);
+      drawText("QUEST", 130, 92, 22, "center", COLORS.bg);
+      
+      drawText("ULTIMATE EDITION", 130, 130, 10, "center", COLORS.dark);
+      
+      // Efecto parpadeo "Press Start"
+      state.blink++;
+      if ((state.blink % 60) < 40) {
+        drawText("PRESS START (A)", 130, 180, 12, "center", COLORS.black);
+      }
+      
+      drawText("© 2025 J. JARAMILLO", 130, 215, 9, "center", COLORS.dark);
+    }
+    
+    else if (state.screen === SCREENS.THEORY) {
+      const p = theory[state.page];
+      
+      // Header
+      ctx.fillStyle = COLORS.black; 
+      ctx.fillRect(0, 0, 260, 25);
+      drawText(p.title, 130, 17, 12, "center", COLORS.bg);
+      
+      // Contenido
+      let y = 50;
+      p.lines.forEach(line => {
+        // Detectar si es ejemplo o regla
+        let color = COLORS.dark;
+        if (line.includes("->")) color = "#000"; // Enfasis
+        drawText(line, 20, y, 11, "left", color);
+        y += 18;
+      });
+
+      // Footer
+      drawText(`PAGE ${state.page + 1} / ${theory.length}`, 20, 215, 10, "left", COLORS.black);
+      state.blink++;
+      if ((state.blink % 40) < 30) {
+        drawText("A: NEXT >>", 240, 215, 10, "right", COLORS.black);
+      }
+    }
+    
+    else if (state.screen === SCREENS.QUIZ) {
+      const q = questions[state.qIndex];
+      
+      // HUD Superior
+      ctx.fillStyle = COLORS.black; ctx.fillRect(0,0,260,18);
+      drawText(`Q:${state.qIndex+1}/${questions.length}`, 5, 13, 10, "left", COLORS.bg);
+      drawText(`SCORE: ${state.score}`, 255, 13, 10, "right", COLORS.bg);
+
+      // Barra de Progreso Visual
+      ctx.fillStyle = "rgba(0,0,0,0.1)"; ctx.fillRect(0, 18, 260, 4);
+      ctx.fillStyle = COLORS.black; 
+      ctx.fillRect(0, 18, (260 * ((state.qIndex)/questions.length)), 4);
+
+      // Pregunta
+      ctx.fillStyle = "rgba(0,0,0,0.05)"; ctx.fillRect(10, 35, 240, 60); // Fondo suave
+      
+      // Centrado de texto pregunta
+      const words = q.q.split(" ");
+      let line = ""; let y = 55;
+      ctx.textAlign = "center"; ctx.font = "bold 14px monospace"; ctx.fillStyle = COLORS.black;
+      for(let w of words) {
+        if (ctx.measureText(line + w).width > 220) { ctx.fillText(line, 130, y); line = w + " "; y+=18; }
+        else line += w + " ";
+      }
+      ctx.fillText(line, 130, y);
+
+      // Opciones
+      const startY = 115;
+      q.opts.forEach((opt, i) => {
+        const isSel = i === state.selIndex;
+        if (isSel) {
+          // Opción Seleccionada (Negro con texto claro)
+          ctx.fillStyle = COLORS.black; 
+          ctx.fillRect(20, startY + (i*32) - 18, 220, 26);
+          drawText("► " + opt.toUpperCase(), 30, startY + (i*32), 12, "left", COLORS.bg);
+        } else {
+          // Opción Normal
+          drawText(opt.toUpperCase(), 30, startY + (i*32), 12, "left", COLORS.dark);
+        }
+      });
+
+      // Feedback Overlay (Correcto/Incorrecto)
+      if (state.timer > 0) {
+        const isCorrect = state.msg === "CORRECT!";
+        // Fondo
+        ctx.fillStyle = isCorrect ? COLORS.black : COLORS.dark;
+        ctx.fillRect(15, 80, 230, 80);
+        ctx.strokeStyle = COLORS.bg; ctx.lineWidth = 2; ctx.strokeRect(15,80,230,80);
+        
+        // Texto Grande
+        drawText(state.msg, 130, 115, 20, "center", COLORS.bg);
+        
+        // Tip si falló
+        if (!isCorrect) {
+          drawText("TIP:", 130, 135, 9, "center", COLORS.bg);
+          drawText(q.tip, 130, 150, 9, "center", "#fff");
+        }
+      }
+    }
+    
+    else if (state.screen === SCREENS.END) {
+      drawText("MISSION COMPLETE", 130, 50, 18, "center", COLORS.black);
+      
+      const pct = Math.floor((state.score / questions.length) * 100);
+      drawText(`FINAL SCORE: ${state.score}`, 130, 90, 14, "center");
+      drawText(`ACCURACY: ${pct}%`, 130, 110, 14, "center");
+
+      // Sistema de Rangos
+      let rank = "BEGINNER";
+      let icon = "🌱";
+      if (pct > 50) { rank = "STUDENT"; icon = "📚"; }
+      if (pct > 75) { rank = "TEACHER"; icon = "👨‍🏫"; }
+      if (pct > 90) { rank = "MASTER"; icon = "👑"; }
+      if (pct === 100) { rank = "LEGEND"; icon = "💎"; }
+
+      ctx.font = "30px sans-serif"; ctx.textAlign="center"; ctx.fillText(icon, 130, 150);
+      drawText(`RANK: ${rank}`, 130, 180, 16, "center", COLORS.dark);
+      
+      state.blink++;
+      if ((state.blink % 60) < 40) {
+        drawText("PRESS A TO RESTART", 130, 215, 10, "center", COLORS.black);
+      }
+    }
+  }
+
+  // --- BUCLE DE JUEGO (GAME LOOP) ---
+  function loop() {
+    // Lógica del Timer (para pausas de feedback)
+    if (state.timer > 0) {
+      state.timer--;
+      if (state.timer === 0) {
+        // Avanzar pregunta
+        if (state.qIndex < questions.length - 1) {
+          state.qIndex++;
+          state.selIndex = 0;
+        } else {
+          state.screen = SCREENS.END;
+        }
+      }
+    }
+
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // --- MANEJO DE ENTRADAS (INPUT) ---
+  function input(key) {
+    if (state.timer > 0) return; // Bloqueado mientras muestra feedback
+
+    // PANTALLA TÍTULO
+    if (state.screen === SCREENS.TITLE) {
+      if (key === 'a' || key === 'start') {
+        playSound('ok');
+        state.screen = SCREENS.THEORY;
+      }
+    }
+    // PANTALLA TEORÍA
+    else if (state.screen === SCREENS.THEORY) {
+      if (key === 'a') {
+        playSound('move');
+        if (state.page < theory.length - 1) {
+          state.page++;
+        } else {
+          playSound('ok');
+          state.screen = SCREENS.QUIZ;
+          state.qIndex = 0;
+          state.score = 0;
+        }
+      }
+      if (key === 'select') { // Saltar teoría
+        playSound('ok');
+        state.screen = SCREENS.QUIZ;
+        state.qIndex = 0; 
+        state.score = 0;
+      }
+    }
+    // PANTALLA QUIZ
+    else if (state.screen === SCREENS.QUIZ) {
+      const q = questions[state.qIndex];
+      
+      if (key === 'up') {
+        playSound('move');
+        state.selIndex = (state.selIndex - 1 + 3) % 3; // Ciclo 0-2
+      }
+      if (key === 'down') {
+        playSound('move');
+        state.selIndex = (state.selIndex + 1) % 3;
+      }
+      if (key === 'a') {
+        // Verificar respuesta
+        if (state.selIndex === q.ans) {
+          state.score++;
+          state.msg = "CORRECT!";
+          playSound('win');
+          state.timer = 60; // 1 segundo de pausa (aprox 60 frames)
+        } else {
+          state.msg = "WRONG!";
+          playSound('bad');
+          state.timer = 120; // 2 segundos para leer el TIP
+        }
+      }
+    }
+    // PANTALLA FINAL
+    else if (state.screen === SCREENS.END) {
+      if (key === 'a' || key === 'start') {
+        location.reload(); // Reinicio limpio
+      }
+    }
+  }
+
+  // --- VINCULACIÓN DE EVENTOS ---
+  
+  // 1. Botones en Pantalla (Touch/Mouse)
+  function bindBtn(id, key) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    
+    // Prevenir menú contextual y zoom
+    el.addEventListener('touchstart', (e) => { e.preventDefault(); input(key); }, {passive: false});
+    el.addEventListener('mousedown', (e) => { e.preventDefault(); input(key); });
+  }
+
+  bindBtn('btn-up', 'up');
+  bindBtn('btn-down', 'down');
+  bindBtn('btn-a', 'a');
+  bindBtn('btn-b', 'b'); // Sonido extra si quieren apretar B
+  bindBtn('btn-start', 'start');
+  bindBtn('btn-select', 'select');
+
+  // 2. Teclado Físico
+  window.addEventListener('keydown', (e) => {
+    if (e.key === "ArrowUp") input('up');
+    if (e.key === "ArrowDown") input('down');
+    if (e.key === "Enter" || e.key === "z") input('a');
+    if (e.key === "x") input('b');
+    if (e.key === "Shift") input('select');
+  });
+
+  // ¡ARRANCAR!
+  requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>

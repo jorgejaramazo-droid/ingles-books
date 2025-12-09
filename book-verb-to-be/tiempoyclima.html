@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>SkyCaster: Time & Weather</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    /* ================= ESTILO GBA INDIGO ================= */
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none; }
+    
+    body {
+      margin: 0; padding: 0;
+      background: #100020; /* Fondo oscuro espacial */
+      background-image: radial-gradient(#4b0082 1px, transparent 1px);
+      background-size: 30px 30px;
+      display: flex; justify-content: center; align-items: center;
+      height: 100vh; overflow: hidden;
+      font-family: 'Courier New', Courier, monospace;
+      color: #eee;
+    }
+
+    #game-container {
+      display: flex; flex-direction: column; align-items: center;
+      transform: scale(1); transition: transform 0.2s;
+    }
+
+    /* Consola Índigo */
+    #console-body {
+      background: #4834d4; /* Índigo Intenso */
+      padding: 15px 30px;
+      border-radius: 20px 20px 50px 20px;
+      box-shadow: 
+        inset 5px 5px 15px rgba(255,255,255,0.2), 
+        inset -5px -5px 15px rgba(0,0,0,0.4),
+        0 20px 40px rgba(0,0,0,0.8);
+      border: 3px solid #30336b;
+      width: 360px;
+      display: flex; flex-direction: column; align-items: center;
+    }
+
+    /* Pantalla Panorámica */
+    #screen-border {
+      background: #2f3542;
+      padding: 15px 35px;
+      border-radius: 10px 10px 10px 10px;
+      margin-bottom: 20px;
+      width: 100%;
+      box-shadow: inset 2px 2px 8px rgba(0,0,0,0.9);
+      display: flex; flex-direction: column; align-items: center;
+      position: relative;
+    }
+
+    /* Logo en el marco */
+    .brand-logo {
+      color: #b2bec3; font-family: sans-serif; font-style: italic; font-weight: 800; font-size: 14px;
+      margin-bottom: 5px; width: 100%; text-align: left; letter-spacing: -1px;
+    }
+
+    canvas {
+      background: #dff9fb; /* Pantalla brillante (Cielo) */
+      border: 3px solid #130f40;
+      image-rendering: pixelated;
+    }
+
+    /* === CONTROLES === */
+    .controls-area {
+      display: flex; justify-content: space-between; width: 100%; align-items: flex-end; padding-bottom: 10px;
+    }
+
+    /* D-PAD Gris */
+    .dpad {
+      width: 90px; height: 90px; position: relative;
+    }
+    .dpad-bg { position: absolute; background: #95afc0; border-radius: 4px; box-shadow: 2px 2px 0 #535c68; }
+    .d-v { left: 30px; top: 0; width: 30px; height: 90px; }
+    .d-h { left: 0; top: 30px; width: 90px; height: 30px; }
+    .d-c { left: 30px; top: 30px; width: 30px; height: 30px; background: #7f8fa6; border-radius: 50%; z-index:2; }
+
+    /* Touch Zones */
+    .btn-touch { position: absolute; z-index: 10; cursor: pointer; }
+    .t-up { top:0; left:0; width:100%; height:45%; }
+    .t-down { bottom:0; left:0; width:100%; height:45%; }
+
+    /* Botones A/B */
+    .ab-group { display: flex; gap: 15px; margin-bottom: 15px; }
+    .btn-action {
+      width: 45px; height: 45px; border-radius: 50%;
+      background: #e056fd; /* Rosa neón GBA */
+      border-bottom: 4px solid #be2edd;
+      color: #fff; display: flex; justify-content: center; align-items: center;
+      font-weight: bold; font-family: sans-serif; cursor: pointer;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+    }
+    .btn-action:active { transform: translateY(4px); border-bottom: 0; }
+
+    /* Start/Select */
+    .meta-btns { display: flex; gap: 10px; margin-bottom: 5px; }
+    .btn-small {
+      width: 40px; height: 12px; background: #535c68; border-radius: 6px;
+      transform: rotate(-15deg); border: 1px solid #2f3640; cursor: pointer;
+    }
+
+    #meta-info { margin-top: 10px; font-size: 10px; color: #a29bfe; font-family: sans-serif; }
+
+    @media (max-width: 400px) { #game-container { transform: scale(0.85); } }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+  <div id="console-body">
+    
+    <div id="screen-border">
+      <div class="brand-logo">SKY CASTER <span style="font-size:9px; font-weight:normal; float:right;">WIDE SCREEN</span></div>
+      <canvas id="game" width="280" height="180"></canvas>
+    </div>
+
+    <div class="controls-area">
+      <div class="dpad">
+        <div class="dpad-bg d-v"></div>
+        <div class="dpad-bg d-h"></div>
+        <div class="dpad-bg d-c"></div>
+        <div class="btn-touch t-up" id="btn-up"></div>
+        <div class="btn-touch t-down" id="btn-down"></div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; align-items:center;">
+         <div class="meta-btns">
+            <div class="btn-small" id="btn-select"></div>
+            <div class="btn-small" id="btn-start"></div>
+         </div>
+         <div style="font-size:8px; color:#bbb; margin-top:2px;">SELECT START</div>
+      </div>
+
+      <div class="ab-group">
+        <div class="btn-action" id="btn-b">B</div>
+        <div class="btn-action" id="btn-a">A</div>
+      </div>
+    </div>
+
+  </div>
+  <div id="meta-info">English A1 · Time & Weather · J. Jaramillo</div>
+</div>
+
+<script>
+(function() {
+  const canvas = document.getElementById("game");
+  if(!canvas) return;
+  const ctx = canvas.getContext("2d");
+
+  // Paleta de colores "Cielo"
+  const C = { 
+    bg: "#dff9fb",     // Cielo claro
+    text: "#130f40",   // Azul noche
+    accent: "#eb4d4b", // Rojo alerta
+    bar: "#686de0",    // Azul real
+    good: "#6ab04c",
+    bad: "#eb4d4b"
+  };
+
+  const SCREENS = { TITLE: 0, THEORY: 1, QUIZ: 2, END: 3 };
+
+  let state = {
+    screen: SCREENS.TITLE,
+    page: 0,
+    qIndex: 0,
+    selIndex: 0,
+    score: 0,
+    msg: "",
+    timer: 0,
+    frame: 0
+  };
+
+  // --- AUDIO ---
+  let audioCtx = null;
+  function sfx(type) {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const now = audioCtx.currentTime;
+
+      if(type==='nav') { osc.frequency.setValueAtTime(300, now); osc.stop(now+0.05); }
+      if(type==='ok') { osc.frequency.setValueAtTime(600, now); osc.frequency.linearRampToValueAtTime(800, now+0.1); osc.stop(now+0.1); }
+      if(type==='win') { osc.type='triangle'; osc.frequency.setValueAtTime(500, now); osc.frequency.linearRampToValueAtTime(1000, now+0.2); osc.stop(now+0.3); }
+      if(type==='bad') { osc.type='sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.linearRampToValueAtTime(50, now+0.3); osc.stop(now+0.3); }
+
+      gain.gain.setValueAtTime(0.05, now);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start();
+    } catch(e){}
+  }
+
+  // --- CONTENIDO ---
+  
+  const theory = [
+    { 
+      title: "THE CLOCK: PAST & TO", 
+      lines: [
+        "1. O'CLOCK: 12:00 -> Twelve o'clock.",
+        "2. PAST (Min 1-30):",
+        "   Use for the first half.",
+        "   3:10 -> Ten PAST three.",
+        "   3:15 -> Quarter PAST three.",
+        "   3:30 -> Half PAST three."
+      ] 
+    },
+    { 
+      title: "THE CLOCK: PART 2", 
+      lines: [
+        "3. TO (Min 31-59):",
+        "   Count minutes to the NEXT hour.",
+        "   3:40 -> Twenty TO four.",
+        "   3:45 -> Quarter TO four.",
+        "   3:50 -> Ten TO four.",
+        "   (Mira la siguiente hora)"
+      ] 
+    },
+    { 
+      title: "WEATHER VOCAB", 
+      lines: [
+        "☀️ Sunny (Soleado)",
+        "🌧️ Rainy (Lluvioso)",
+        "☁️ Cloudy (Nublado)",
+        "❄️ Snowy (Nevando)",
+        "💨 Windy (Ventoso)",
+        "🌡️ Hot (Caliente) / Cold (Frío)"
+      ] 
+    }
+  ];
+
+  const questions = [
+    // --- BASIC O'CLOCK & HALF ---
+    { q: "🕒 3:00", opts: ["Three o'clock", "Three past", "Three hours"], ans: 0, tip: "En punto = O'CLOCK." },
+    { q: "🕡 6:30", opts: ["Six thirty", "Half past six", "Half to six"], ans: 1, tip: "30 min = HALF PAST." },
+    { q: "What time is it? 9:00", opts: ["It's nine", "It is nine", "All correct"], ans: 2, tip: "Puedes decir 'It's nine' o 'Nine o'clock'." },
+
+    // --- PAST (1-30) ---
+    { q: "4:10 -> It's ten ___ four.", opts: ["to", "past", "clock"], ans: 1, tip: "Minuto 10 está en la 1ra mitad (PAST)." },
+    { q: "🕥 10:15", opts: ["Quarter to ten", "Quarter past ten", "Ten fifteen"], ans: 1, tip: "15 min = QUARTER PAST." },
+    { q: "11:20", opts: ["Twenty past eleven", "Twenty to eleven", "Eleven twenty"], ans: 0, tip: "20 min = Past." },
+
+    // --- TO (31-59) ---
+    { q: "7:50 -> It's ten ___ eight.", opts: ["past", "to", "for"], ans: 1, tip: "Faltan 10 para las 8 (TO)." },
+    { q: "🕤 8:45", opts: ["Quarter past eight", "Quarter to nine", "Quarter past nine"], ans: 1, tip: "Faltan 15 para las 9 (Quarter TO Nine)." },
+    { q: "2:40 -> Twenty ___ three.", opts: ["past", "to", "two"], ans: 1, tip: "Faltan 20 para las 3." },
+    
+    // --- WEATHER IMAGES ---
+    { q: "The weather is... ☀️", opts: ["Cloudy", "Sunny", "Windy"], ans: 1, tip: "Sol = Sunny." },
+    { q: "It is... 🌧️", opts: ["Raining", "Rainy", "All correct"], ans: 2, tip: "Rainy (adj) o Raining (verb)." },
+    { q: "Look! It is... ❄️", opts: ["Snowing", "Hot", "Sunny"], ans: 0, tip: "Nieve = Snow." },
+    { q: "The sky is... ☁️", opts: ["Cloudy", "Clear", "Sunny"], ans: 0, tip: "Nubes = Cloudy." },
+
+    // --- LOGIC & GRAMMAR ---
+    { q: "It's 35 degrees! It is ___.", opts: ["Cold", "Hot", "Snowy"], ans: 1, tip: "35°C es caliente (HOT)." },
+    { q: "It's 0 degrees! It is ___.", opts: ["Hot", "Sunny", "Cold"], ans: 2, tip: "0°C es frío (COLD)." },
+    { q: "Take an umbrella! It's ___.", opts: ["Sunny", "Rainy", "Dry"], ans: 1, tip: "Umbrella = Paraguas." },
+    { q: "___ is the weather like?", opts: ["What", "How", "Who"], ans: 0, tip: "WHAT is the weather like?" },
+    { q: "___ time is it?", opts: ["What", "Which", "When"], ans: 0, tip: "WHAT time is it?" },
+
+    // --- MIXED HARD ---
+    { q: "12:00 PM is...", opts: ["Midnight", "Noon", "Night"], ans: 1, tip: "12 PM (Día) = Noon." },
+    { q: "12:00 AM is...", opts: ["Noon", "Midnight", "Lunch"], ans: 1, tip: "12 AM (Noche) = Midnight." },
+    { q: "1:55 -> Five ___ two.", opts: ["past", "to", "clock"], ans: 1, tip: "Faltan 5 para las 2." },
+    { q: "In Winter, it is...", opts: ["Hot", "Sunny", "Cold"], ans: 2, tip: "Invierno = Frío." },
+    { q: "In Summer, it is...", opts: ["Snowy", "Hot", "Cold"], ans: 1, tip: "Verano = Caliente." }
+  ];
+
+  // --- RENDER ---
+  function drawText(txt, x, y, size=12, align="center", color=C.text) {
+    ctx.fillStyle = color; ctx.font = "bold "+size+"px monospace"; ctx.textAlign = align;
+    ctx.fillText(txt, x, y);
+  }
+
+  function render() {
+    ctx.fillStyle = C.bg; ctx.fillRect(0,0,canvas.width,canvas.height);
+    state.frame++;
+
+    // FONDO NUBES (Decoración animada)
+    const cloudX = (state.frame * 0.5) % 320 - 40;
+    ctx.fillStyle = "#c7ecee"; 
+    ctx.beginPath(); ctx.arc(cloudX, 40, 20, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cloudX+20, 30, 25, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cloudX+40, 40, 20, 0, Math.PI*2); ctx.fill();
+
+    if(state.screen === SCREENS.TITLE) {
+      drawText("SKY CASTER", 140, 60, 28, "center", C.bar);
+      drawText("TIME & WEATHER", 140, 85, 14, "center", C.text);
+      
+      if(Math.floor(state.frame/30)%2===0) {
+        drawText("PRESS START (A)", 140, 140, 12, "center", C.accent);
+      }
+      
+      drawText("☀️ 🕒 ❄️", 140, 115, 20);
+    }
+    
+    else if(state.screen === SCREENS.THEORY) {
+      const p = theory[state.page];
+      ctx.fillStyle = C.bar; ctx.fillRect(0,0,canvas.width,25);
+      ctx.fillStyle = "#fff"; ctx.font = "bold 12px monospace"; ctx.textAlign="center";
+      ctx.fillText(p.title, 140, 17);
+
+      let y = 50;
+      ctx.textAlign = "left";
+      p.lines.forEach(l => {
+        ctx.fillStyle = C.text; ctx.font = "11px monospace";
+        ctx.fillText(l, 10, y);
+        y += 20;
+      });
+
+      ctx.textAlign = "right"; ctx.fillStyle = C.bar;
+      ctx.fillText("A: NEXT >>", 270, 170);
+    }
+    
+    else if(state.screen === SCREENS.QUIZ) {
+      const q = questions[state.qIndex];
+      
+      // HUD
+      ctx.fillStyle = C.text; ctx.fillRect(0,0,canvas.width,20);
+      ctx.fillStyle = "#fff"; ctx.font="10px monospace"; ctx.textAlign="left";
+      ctx.fillText(`Q: ${state.qIndex+1}/${questions.length}`, 5, 13);
+      ctx.textAlign="right";
+      ctx.fillText(`PTS: ${state.score}`, 275, 13);
+
+      // Question
+      ctx.fillStyle = "rgba(255,255,255,0.6)"; ctx.fillRect(10,30,260,50);
+      
+      // Detectar si hay emojis para subir la fuente
+      const fontSize = q.q.match(/[\uD800-\uDBFF]/) ? 16 : 14;
+      drawText(q.q, 140, 60, fontSize, "center", C.text);
+
+      // Options
+      const startY = 95;
+      q.opts.forEach((opt, i) => {
+        const isSel = i === state.selIndex;
+        if(isSel) {
+          ctx.fillStyle = C.bar; ctx.fillRect(20, startY + (i*28)-16, 240, 24);
+          drawText(opt, 140, startY + (i*28), 12, "center", "#fff");
+        } else {
+          drawText(opt, 140, startY + (i*28), 12, "center", C.text);
+        }
+      });
+
+      // Feedback
+      if(state.timer > 0) {
+        const isCor = state.msg === "CORRECT!";
+        ctx.fillStyle = isCor ? C.good : C.bad;
+        ctx.fillRect(0, 50, 280, 80);
+        drawText(state.msg, 140, 90, 24, "center", "#fff");
+        if(!isCor) {
+           drawText("TIP:", 140, 110, 10, "center", "#fff");
+           drawText(q.tip, 140, 122, 10, "center", "#fff");
+        }
+      }
+    }
+
+    else if(state.screen === SCREENS.END) {
+      drawText("FORECAST COMPLETE", 140, 50, 18, "center", C.text);
+      const pct = Math.floor((state.score/questions.length)*100);
+      drawText(`SCORE: ${state.score}`, 140, 80, 14);
+      
+      let rank = "Cloudy ☁️";
+      if(pct > 50) rank = "Partly Sunny 🌤️";
+      if(pct > 80) rank = "Sunny & Bright ☀️";
+      if(pct === 100) rank = "TIME LORD ⏳";
+
+      drawText(rank, 140, 120, 16, "center", C.accent);
+      drawText("PRESS A TO RESTART", 140, 160, 10);
+    }
+  }
+
+  // --- LOGIC ---
+  function loop() {
+    if(state.timer > 0) {
+      state.timer--;
+      if(state.timer===0) {
+        if(state.qIndex < questions.length-1) { state.qIndex++; state.selIndex=0; }
+        else { state.screen = SCREENS.END; }
+      }
+    }
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  function input(key) {
+    if(state.timer > 0) return;
+
+    if(state.screen === SCREENS.TITLE) {
+      if(key==='a' || key==='start') { sfx('ok'); state.screen = SCREENS.THEORY; }
+    }
+    else if(state.screen === SCREENS.THEORY) {
+      if(key==='a') {
+        sfx('nav');
+        if(state.page < theory.length-1) state.page++;
+        else { sfx('ok'); state.screen=SCREENS.QUIZ; state.qIndex=0; state.score=0; }
+      }
+      if(key==='select') { sfx('ok'); state.screen=SCREENS.QUIZ; state.qIndex=0; state.score=0; }
+    }
+    else if(state.screen === SCREENS.QUIZ) {
+      if(key==='up') { sfx('nav'); state.selIndex = (state.selIndex-1+3)%3; }
+      if(key==='down') { sfx('nav'); state.selIndex = (state.selIndex+1)%3; }
+      if(key==='a') {
+        const q = questions[state.qIndex];
+        if(state.selIndex === q.ans) {
+          state.score++; state.msg="CORRECT!"; sfx('win'); state.timer=50;
+        } else {
+          state.msg="WRONG!"; sfx('bad'); state.timer=120;
+        }
+      }
+    }
+    else if(state.screen === SCREENS.END) {
+      if(key==='a') location.reload();
+    }
+  }
+
+  // --- EVENTS ---
+  function bind(id, k) {
+    const el = document.getElementById(id);
+    if(el) {
+      el.addEventListener('mousedown', (e)=>{e.preventDefault(); input(k);});
+      el.addEventListener('touchstart', (e)=>{e.preventDefault(); input(k);}, {passive:false});
+    }
+  }
+  bind('btn-up','up'); bind('btn-down','down');
+  bind('btn-a','a'); bind('btn-b','b');
+  bind('btn-start','start'); bind('btn-select','select');
+
+  window.addEventListener('keydown', e => {
+    if(e.key==="ArrowUp") input('up');
+    if(e.key==="ArrowDown") input('down');
+    if(e.key==="Enter" || e.key==="z") input('a');
+    if(e.key==="Shift") input('select');
+  });
+
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

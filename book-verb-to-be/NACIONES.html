@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Verb To Be & Nationalities - Game Boy Edition</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation; /* Mejora la respuesta táctil */
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: radial-gradient(circle at top, #222 0, #050505 60%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Courier New', Courier, monospace; /* Fuente más segura */
+      color: #eee;
+      overflow: hidden;
+    }
+
+    #game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      transform-origin: center;
+      transition: transform 0.2s;
+    }
+
+    #gameboy-frame {
+      padding: 16px 16px 20px;
+      border-radius: 26px;
+      background: linear-gradient(145deg, #333, #111);
+      box-shadow:
+        0 20px 40px rgba(0,0,0,0.7),
+        inset 0 0 10px rgba(0,0,0,0.7);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      border: 2px solid #555;
+      position: relative;
+    }
+
+    #title-strip {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #e5f5d0;
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      font-family: system-ui, sans-serif;
+    }
+
+    #title-main { font-weight: 700; }
+    #title-sub { font-size: 9px; opacity: 0.8; }
+
+    #status-bar {
+      width: 100%;
+      font-size: 9px;
+      text-align: right;
+      color: #9ac7a0;
+      opacity: 0.9;
+      margin-bottom: 2px;
+      font-family: system-ui, sans-serif;
+    }
+
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      border-radius: 8px;
+      border: 4px solid #3f5b41;
+      background: #99c98c; /* Color base por si tarda en cargar */
+      box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2);
+    }
+
+    #controls-label {
+      font-size: 10px;
+      text-align: center;
+      color: #bbb;
+      margin-top: 4px;
+      font-family: system-ui, sans-serif;
+    }
+
+    /* Controles táctiles */
+    #touch-controls {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      user-select: none;
+    }
+
+    .touch-row {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .btn-control {
+      width: 60px;
+      height: 40px;
+      border-radius: 20px;
+      border: 2px solid #444;
+      background: radial-gradient(circle at top, #666 0, #222 65%);
+      color: #f5f5f5;
+      font-size: 12px;
+      font-weight: bold;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 4px 0 #000, 0 6px 12px rgba(0,0,0,0.7);
+      cursor: pointer;
+      font-family: system-ui, sans-serif;
+    }
+
+    .btn-control:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #000, 0 4px 8px rgba(0,0,0,0.6);
+      background: radial-gradient(circle at top, #777 0, #333 65%);
+    }
+
+    .btn-small {
+      width: 60px;
+      height: 30px;
+      border-radius: 15px;
+      font-size: 10px;
+      background: radial-gradient(circle at top, #883333 0, #441111 65%);
+    }
+
+    #meta-info {
+      margin-top: 8px;
+      font-size: 10px;
+      color: #666;
+      text-align: center;
+      font-family: system-ui, sans-serif;
+    }
+
+    /* Media Queries para móviles */
+    @media (max-width: 480px) {
+      #game-container { transform: scale(0.95); }
+    }
+    @media (max-width: 360px) {
+      #game-container { transform: scale(0.85); }
+    }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+  <div id="gameboy-frame">
+    <div id="title-strip">
+      <span id="title-main">To Be & Nations</span>
+      <span id="title-sub">A1 English</span>
+    </div>
+    <div id="status-bar">
+      🔋 BATTERY | 🌍 LEVEL 1
+    </div>
+
+    <canvas id="game" width="320" height="240"></canvas>
+
+    <div id="controls-label">
+      CONTROLS: ARROWS + ENTER | TOUCH BUTTONS
+    </div>
+
+    <div id="touch-controls">
+      <div class="touch-row">
+        <div class="btn-control" data-action="up">▲ UP</div>
+      </div>
+      <div class="touch-row">
+        <div class="btn-control" data-action="down">▼ DOWN</div>
+        <div class="btn-control" data-action="ok">● A</div>
+        <div class="btn-control btn-small" data-action="skip">SKIP</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="meta-info">
+    Aprende Inglés Ya · Game Boy Edition · J. Jaramillo
+  </div>
+</div>
+
+<script>
+window.addEventListener('load', function() {
+  /* =====================================================
+     MOTOR DE JUEGO
+     ===================================================== */
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+
+  // Paleta de colores clásica
+  const COLORS = {
+    bg: "#99c98c",
+    dark: "#436646",
+    darker: "#2b4530",
+    light: "#cfe9c0",
+    text: "#102010",
+    accent: "#213921"
+  };
+
+  const SCREENS = {
+    TITLE: "title",
+    STORY: "story",
+    EXPLAIN_AFFIRM: "explain_affirm",
+    EXPLAIN_NEG: "explain_neg",
+    EXPLAIN_INTER: "explain_inter",
+    QUIZ: "quiz",
+    SUMMARY: "summary"
+  };
+
+  let state = {
+    screen: SCREENS.TITLE,
+    selectionIndex: 0,
+    storyPage: 0,
+    explainPage: 0,
+    quizIndex: 0,
+    score: 0,
+    totalQuestions: 0
+  };
+
+  // ==== SONIDOS ====
+  let audioCtx = null;
+  function initAudio() {
+    if (!audioCtx) {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch(e) { console.log("Audio no soportado"); }
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  function playBeep(type = "move") {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    let freq = 440;
+    let duration = 0.08;
+
+    if (type === "move") { freq = 300; duration = 0.05; }
+    else if (type === "ok") { freq = 600; duration = 0.1; }
+    else if (type === "good") { freq = 880; duration = 0.15; osc.type = "triangle"; }
+    else if (type === "bad") { freq = 150; duration = 0.25; osc.type = "sawtooth"; }
+
+    osc.type = osc.type || "square";
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  }
+
+  // ==== DATOS DEL LIBRO (TEORÍA) ====
+  const storyPages = [
+    [
+      "NATIONQUEST: INICIO", "",
+      "Eres un estudiante de idiomas.",
+      "Tu misión es viajar por el",
+      "mundo usando el VERBO TO BE.",
+      "",
+      "Debes aprender a decir:",
+      "1. Tu nombre.",
+      "2. Tu nacionalidad.",
+      "3. De dónde eres.",
+      "",
+      "PRESIONA OK / ENTER"
+    ],
+    [
+      "EL GUÍA DICE:", "",
+      "\"Recuerda: Country es el país",
+      "(Mexico, Japan, Italy).",
+      "",
+      "Nationality es la persona",
+      "(Mexican, Japanese, Italian).\"",
+      "",
+      "Ejemplo: I am from Mexico (Pais)",
+      "        I am Mexican (Nacionalidad)",
+      "",
+      "¡Empecemos!"
+    ]
+  ];
+
+  const explainAffirm = [
+    [ "1. AFIRMATIVO", "", "I am Mexican.", "You are American.", "He is German.", "She is Chinese.", "We are Brazilian.", "They are Spanish." ],
+    [ "2. CONTRACCIONES", "", "I'm Mexican.", "You're American.", "He's German.", "She's Chinese.", "We're Brazilian.", "They're Spanish." ]
+  ];
+  const explainNeg = [
+    [ "1. NEGATIVO", "", "I am not (I'm not)", "You are not (aren't)", "He is not (isn't)", "She is not (isn't)", "We are not (aren't)", "They are not (aren't)" ],
+    [ "EJEMPLOS", "", "I'm not from Spain.", "She isn't Italian.", "They aren't from Tokyo." ]
+  ];
+  const explainInter = [
+    [ "1. PREGUNTAS", "", "Am I...?", "Are you...?", "Is he...?", "Is she...?", "Are we...?", "Are they...?" ],
+    [ "EJEMPLOS", "", "Are you Japanese?", "Is she from Paris?", "Where are you from?" ]
+  ];
+
+  // ==== DATOS DEL QUIZ (20 PREGUNTAS) ====
+  const quizQuestions = [
+    // Básico
+    { boss: "SLIME", type: "affirm", sentence: "I ___ Mexican and I ___ from Guadalajara.", options: ["am / am", "is / am", "are / am"], correctIndex: 0, tip: "I -> AM. Siempre." },
+    { boss: "BAT", type: "affirm", sentence: "She ___ not American, she ___ Canadian.", options: ["is / is", "are / is", "am / is"], correctIndex: 0, tip: "She -> IS." },
+    { boss: "GHOST", type: "inter", sentence: "___ you from Argentina?", options: ["Is", "Are", "Am"], correctIndex: 1, tip: "You -> ARE." },
+    
+    // Lugares vs Nacionalidades
+    { boss: "MAP", type: "mixed", sentence: "Hans is from ___. He is ___.", options: ["German / Germany", "Germany / German", "Germany / Germany"], correctIndex: 1, tip: "From PAIS (Germany). He is NACIONALIDAD (German)." },
+    { boss: "FLAG", type: "mixed", sentence: "I am ___. I am from ___.", options: ["Japan / Japanese", "Japanese / Japan", "Japan / Japan"], correctIndex: 1, tip: "I am NACIONALIDAD. I am from PAIS." },
+    
+    // Plurales y They/We
+    { boss: "TWINS", type: "affirm", sentence: "They ___ Brazilian.", options: ["is", "am", "are"], correctIndex: 2, tip: "They -> ARE." },
+    { boss: "GROUP", type: "neg", sentence: "We ___ in Europe, we are in Asia.", options: ["isn't", "aren't", "am not"], correctIndex: 1, tip: "We -> ARE NOT (Aren't)." },
+    
+    // Trampas de Adjetivos (No plural en adjetivos)
+    { boss: "GLITCH", type: "mixed", sentence: "They are ___.", options: ["Italians", "Italian", "Italys"], correctIndex: 1, tip: "Nacionalidades son adjetivos. ¡NO llevan 's' plural!" },
+    { boss: "BUG", type: "mixed", sentence: "We are ___.", options: ["Americans", "American", "USA"], correctIndex: 1, tip: "We are American (sin S)." },
+    
+    // Tercera persona y cosas
+    { boss: "CAT", type: "mixed", sentence: "This is pizza. It ___ Italian.", options: ["are", "am", "is"], correctIndex: 2, tip: "It (la pizza) -> IS." },
+    
+    // Preguntas Wh-
+    { boss: "WIZARD", type: "inter", sentence: "Where ___ you from?", options: ["is", "are", "am"], correctIndex: 1, tip: "Where ARE you from?" },
+    { boss: "WIZARD", type: "inter", sentence: "Where ___ she from?", options: ["is", "are", "am"], correctIndex: 0, tip: "Where IS she from?" },
+    
+    // Nivel Medio
+    { boss: "KNIGHT", type: "mixed", sentence: "___ your name Jorge?", options: ["Are", "Is", "Am"], correctIndex: 1, tip: "Your name = It. -> IS." },
+    { boss: "DRAGON", type: "mixed", sentence: "Are you and your friend students? Yes, we ___.", options: ["is", "are", "am"], correctIndex: 1, tip: "We -> ARE." },
+    
+    // Negaciones complicadas
+    { boss: "SHADOW", type: "neg", sentence: "Brazil ___ in Europe.", options: ["is not", "are not", "am not"], correctIndex: 0, tip: "Brazil (It) -> IS NOT." },
+    { boss: "VAMPIRE", type: "mixed", sentence: "I ___ hungry, but the pizza ___ ready.", options: ["am / isn't", "are / isn't", "is / aren't"], correctIndex: 0, tip: "I am. Pizza isn't." },
+    
+    // Avanzado / Contexto
+    { boss: "KING", type: "mixed", sentence: "London ___ a country, it ___ a city.", options: ["isn't / is", "aren't / is", "is / is"], correctIndex: 0, tip: "London IS NOT a country." },
+    { boss: "QUEEN", type: "mixed", sentence: "___ they American? No, they ___ British.", options: ["Is / is", "Are / are", "Are / is"], correctIndex: 1, tip: "Are they? They are." },
+    
+    // Final Bosses
+    { boss: "TITAN", type: "mixed", sentence: "You ___ a student and I ___ your teacher.", options: ["are / are", "are / am", "is / am"], correctIndex: 1, tip: "You ARE. I AM." },
+    { boss: "OMEGA", type: "mixed", sentence: "___ from Medan? Yes, I ___.", options: ["Are you / am", "Is you / is", "Are you / are"], correctIndex: 0, tip: "Are you...? Yes I am." }
+  ];
+
+  state.totalQuestions = quizQuestions.length;
+
+  // ==== DIBUJADO ====
+  function clearScreen() {
+    ctx.fillStyle = COLORS.bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  function drawFrame() {
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = COLORS.darker;
+    ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+  }
+  function drawText(lines, x, y, lineHeight = 14) {
+    ctx.fillStyle = COLORS.text;
+    ctx.font = "bold 12px monospace";
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], x, y + i * lineHeight);
+    }
+  }
+
+  // Sprites simples
+  function drawPlayer(x, y) {
+    ctx.fillStyle = COLORS.darker;
+    ctx.fillRect(x, y-14, 12, 12); // cabeza
+    ctx.fillStyle = COLORS.dark;
+    ctx.fillRect(x-2, y-2, 16, 14); // cuerpo
+    ctx.fillRect(x, y+12, 4, 6); // pie
+    ctx.fillRect(x+10, y+12, 4, 6); // pie
+  }
+
+  function drawBoss(label, x, y) {
+    ctx.fillStyle = COLORS.dark;
+    ctx.fillRect(x, y-20, 40, 40);
+    ctx.fillStyle = COLORS.bg;
+    ctx.fillRect(x+5, y-10, 8, 8); // ojo
+    ctx.fillRect(x+25, y-10, 8, 8); // ojo
+    ctx.fillStyle = COLORS.text;
+    ctx.font = "10px monospace";
+    ctx.fillText(label, x, y+30);
+  }
+
+  // ==== PANTALLAS ====
+  function renderTitle() {
+    clearScreen();
+    drawFrame();
+    
+    ctx.fillStyle = COLORS.darker;
+    ctx.fillRect(40, 40, 240, 50);
+    ctx.fillStyle = COLORS.light;
+    ctx.font = "bold 20px monospace";
+    ctx.fillText("NATIONQUEST", 90, 70);
+    
+    const lines = [
+      "",
+      "Aprende Inglés Ya",
+      "Edición A1",
+      "",
+      "Pulsa START (A) o ENTER"
+    ];
+    drawText(lines, 60, 110);
+  }
+
+  function renderStory() {
+    clearScreen();
+    drawFrame();
+    drawText(storyPages[state.storyPage], 20, 30);
+    drawPlayer(260, 180);
+  }
+
+  function renderExplain(block, title) {
+    clearScreen();
+    drawFrame();
+    ctx.fillStyle = COLORS.darker;
+    ctx.font = "bold 12px monospace";
+    ctx.fillText(title, 20, 20);
+    drawText(block[state.explainPage], 20, 50);
+  }
+
+  function renderQuiz() {
+    clearScreen();
+    drawFrame();
+    
+    const q = quizQuestions[state.quizIndex];
+    
+    // Header
+    ctx.fillStyle = COLORS.darker;
+    ctx.fillRect(0, 0, canvas.width, 25);
+    ctx.fillStyle = COLORS.light;
+    ctx.font = "bold 12px monospace";
+    ctx.fillText(`LVL ${state.quizIndex + 1}/${state.totalQuestions} vs ${q.boss}`, 10, 18);
+
+    // Escenario
+    drawPlayer(40, 80);
+    drawBoss(q.boss, 240, 80);
+
+    // Pregunta
+    ctx.fillStyle = COLORS.text;
+    ctx.font = "bold 12px monospace";
+    const parts = q.sentence.split(". ");
+    let py = 120;
+    parts.forEach(p => {
+        ctx.fillText(p + (p.endsWith('.')?'':'.'), 20, py);
+        py += 15;
+    });
+
+    // Opciones
+    for (let i = 0; i < q.options.length; i++) {
+      const isSel = (i === state.selectionIndex);
+      const y = 160 + i * 20;
+      if (isSel) {
+        ctx.fillStyle = COLORS.dark;
+        ctx.fillRect(30, y-14, 260, 18);
+        ctx.fillStyle = COLORS.light;
+        ctx.fillText("> " + q.options[i], 40, y);
+      } else {
+        ctx.fillStyle = COLORS.text;
+        ctx.fillText("  " + q.options[i], 40, y);
+      }
+    }
+    
+    // Tip
+    ctx.font = "10px monospace";
+    ctx.fillStyle = COLORS.accent;
+    ctx.fillText("TIP: " + q.tip, 20, 225);
+  }
+
+  function renderSummary() {
+    clearScreen();
+    drawFrame();
+    const pct = Math.floor((state.score / state.totalQuestions)*100);
+    const lines = [
+      "FIN DEL JUEGO",
+      "----------------",
+      `Puntaje: ${state.score} / ${state.totalQuestions}`,
+      `Nota: ${pct}%`,
+      "",
+      pct > 70 ? "¡EXCELENTE TRABAJO!" : "NECESITAS PRACTICAR",
+      "",
+      "Presiona OK para reiniciar"
+    ];
+    drawText(lines, 40, 60);
+  }
+
+  // ==== LOOP ====
+  let flashMsg = "";
+  let flashTime = 0;
+
+  function mainLoop() {
+    switch(state.screen) {
+      case SCREENS.TITLE: renderTitle(); break;
+      case SCREENS.STORY: renderStory(); break;
+      case SCREENS.EXPLAIN_AFFIRM: renderExplain(explainAffirm, "CLASE: AFIRMATIVO"); break;
+      case SCREENS.EXPLAIN_NEG: renderExplain(explainNeg, "CLASE: NEGATIVO"); break;
+      case SCREENS.EXPLAIN_INTER: renderExplain(explainInter, "CLASE: PREGUNTAS"); break;
+      case SCREENS.QUIZ: renderQuiz(); break;
+      case SCREENS.SUMMARY: renderSummary(); break;
+    }
+
+    if (flashTime > 0) {
+      ctx.fillStyle = COLORS.darker;
+      ctx.fillRect(0, canvas.height/2 - 20, canvas.width, 40);
+      ctx.fillStyle = COLORS.light;
+      ctx.textAlign = "center";
+      ctx.fillText(flashMsg, canvas.width/2, canvas.height/2 + 5);
+      ctx.textAlign = "left";
+      flashTime--;
+    }
+
+    requestAnimationFrame(mainLoop);
+  }
+  
+  // Arrancar Loop
+  requestAnimationFrame(mainLoop);
+
+  // ==== CONTROLES ====
+  function handleInput(action) {
+    initAudio(); // Activar audio al primer toque
+
+    if (state.screen === SCREENS.TITLE) {
+      if (action === "ok") {
+        playBeep("ok");
+        state.screen = SCREENS.STORY;
+      }
+    }
+    else if (state.screen === SCREENS.STORY) {
+      if (action === "ok") {
+        playBeep("ok");
+        if (state.storyPage < storyPages.length-1) state.storyPage++;
+        else state.screen = SCREENS.EXPLAIN_AFFIRM;
+      }
+    }
+    else if ([SCREENS.EXPLAIN_AFFIRM, SCREENS.EXPLAIN_NEG, SCREENS.EXPLAIN_INTER].includes(state.screen)) {
+      if (action === "ok") {
+        playBeep("ok");
+        let arr = (state.screen === SCREENS.EXPLAIN_AFFIRM) ? explainAffirm : 
+                  (state.screen === SCREENS.EXPLAIN_NEG) ? explainNeg : explainInter;
+        
+        if (state.explainPage < arr.length-1) {
+          state.explainPage++;
+        } else {
+          state.explainPage = 0;
+          if (state.screen === SCREENS.EXPLAIN_AFFIRM) state.screen = SCREENS.EXPLAIN_NEG;
+          else if (state.screen === SCREENS.EXPLAIN_NEG) state.screen = SCREENS.EXPLAIN_INTER;
+          else state.screen = SCREENS.QUIZ;
+        }
+      }
+      if (action === "skip") {
+        state.screen = SCREENS.QUIZ;
+        state.explainPage = 0;
+      }
+    }
+    else if (state.screen === SCREENS.QUIZ) {
+      const q = quizQuestions[state.quizIndex];
+      if (action === "up") {
+        playBeep("move");
+        state.selectionIndex = (state.selectionIndex - 1 + q.options.length) % q.options.length;
+      }
+      else if (action === "down") {
+        playBeep("move");
+        state.selectionIndex = (state.selectionIndex + 1) % q.options.length;
+      }
+      else if (action === "ok") {
+        if (state.selectionIndex === q.correctIndex) {
+          playBeep("good");
+          state.score++;
+          flashMsg = "CORRECTO!";
+          flashTime = 30;
+        } else {
+          playBeep("bad");
+          flashMsg = "ERROR!";
+          flashTime = 30;
+        }
+        
+        setTimeout(() => {
+          if (state.quizIndex < quizQuestions.length - 1) {
+            state.quizIndex++;
+            state.selectionIndex = 0;
+          } else {
+            state.screen = SCREENS.SUMMARY;
+          }
+        }, 500);
+      }
+    }
+    else if (state.screen === SCREENS.SUMMARY) {
+      if (action === "ok") {
+        // RESET
+        state.screen = SCREENS.TITLE;
+        state.quizIndex = 0;
+        state.score = 0;
+        state.storyPage = 0;
+        state.explainPage = 0;
+      }
+    }
+  }
+
+  // Listeners Teclado
+  window.addEventListener("keydown", e => {
+    if (e.key === "ArrowUp") handleInput("up");
+    if (e.key === "ArrowDown") handleInput("down");
+    if (e.key === "Enter") handleInput("ok");
+    if (e.key === "Escape") handleInput("skip");
+  });
+
+  // Listeners Touch
+  document.querySelectorAll(".btn-control").forEach(btn => {
+    btn.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      handleInput(btn.dataset.action);
+    }, {passive: false});
+    
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      handleInput(btn.dataset.action);
+    });
+  });
+
+});
+</script>
+</body>
+</html>
